@@ -5,6 +5,7 @@ import * as pagos from './ui/pagos.js';
 import * as resumen from './ui/resumen.js';
 import * as calendario from './ui/calendario.js';
 import * as ajustes from './ui/ajustes.js';
+import { reducirMovimiento } from './ui/movimiento.js';
 
 const pantallas = { resumen, pagos, calendario, ajustes };
 
@@ -53,22 +54,29 @@ export const ctx = {
   mostrar,
 };
 
+const ORDEN = ['resumen', 'pagos', 'calendario', 'ajustes'];
+const indicador = document.querySelector('.indicador');
 let actual = 'resumen';
 
-function mostrar(nombre) {
+// `fundido`: al cambiar de pestaña el contenido nuevo aparece con un fundido muy corto (140 ms).
+function mostrar(nombre, fundido = false) {
   if (nombre !== actual) pagos.cerrarFormulario();
   actual = nombre;
   for (const boton of document.querySelectorAll('#barra button')) {
     if (boton.dataset.pantalla === nombre) boton.setAttribute('aria-current', 'page');
     else boton.removeAttribute('aria-current');
   }
+  indicador.style.transform = `translateX(${ORDEN.indexOf(nombre) * 100}%)`;
   const pantalla = pantallas[nombre];
   if (pantalla) pantalla.render(raiz, ctx);
   else raiz.replaceChildren(el('h2', {}, 'Próximamente'));
+  if (fundido && !reducirMovimiento()) {
+    raiz.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' });
+  }
 }
 
 for (const boton of document.querySelectorAll('#barra button')) {
-  boton.addEventListener('click', () => mostrar(boton.dataset.pantalla));
+  boton.addEventListener('click', () => mostrar(boton.dataset.pantalla, boton.dataset.pantalla !== actual));
 }
 
 mostrar('resumen');
@@ -80,7 +88,8 @@ function alVolver() {
   if (actual === 'resumen' || actual === 'calendario') mostrar(actual);
 }
 document.addEventListener('visibilitychange', alVolver);
-window.addEventListener('pageshow', alVolver);
+// pageshow también se dispara al cargar la página: solo importa cuando se restaura desde memoria (persisted).
+window.addEventListener('pageshow', (e) => { if (e.persisted) alVolver(); });
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => { /* sin service worker, la app sigue funcionando */ });

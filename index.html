@@ -3,10 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#eef0f4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1120" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="myfinz">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <title>myfinz</title>
@@ -16,10 +18,23 @@
   <div id="aviso" role="status" hidden></div>
   <main id="contenido"></main>
   <nav id="barra" aria-label="Pantallas">
-    <button type="button" data-pantalla="resumen">Resumen</button>
-    <button type="button" data-pantalla="pagos">Pagos</button>
-    <button type="button" data-pantalla="calendario">Calendario</button>
-    <button type="button" data-pantalla="ajustes">Ajustes</button>
+    <span class="indicador" aria-hidden="true"></span>
+    <button type="button" data-pantalla="resumen">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M10 20V5M15 20v-7M20 20V9"/></svg>
+      <span>Resumen</span>
+    </button>
+    <button type="button" data-pantalla="pagos">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>
+      <span>Pagos</span>
+    </button>
+    <button type="button" data-pantalla="calendario">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5zM4 10.5h16M8.5 4v3.5M15.5 4v3.5"/></svg>
+      <span>Calendario</span>
+    </button>
+    <button type="button" data-pantalla="ajustes">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg>
+      <span>Ajustes</span>
+    </button>
   </nav>
   <script type="module" src="app.js"></script>
 </body>

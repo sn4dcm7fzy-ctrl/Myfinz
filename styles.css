@@ -1,110 +1,241 @@
+/* myfinz — el color es solo para los datos (deuda, contrato, suscripción); la interfaz es de tinta. */
 :root {
-  --fondo: #f4f5f7;
-  --tarjeta: #ffffff;
-  --texto: #1b1f23;
-  --suave: #5b6570;
-  --borde: #d9dde3;
-  --acento: #0f766e;
-  --acento-texto: #ffffff;
-  --peligro: #b42318;
-  --aviso-fondo: #fff4d6;
-  --deuda: #b42318;
-  --contrato: #1d4ed8;
-  --suscripcion: #7c3aed;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --papel: #eef0f4;
+  --superficie: #f8f9fb;
+  --tinta: #14172b;
+  --tinta-suave: #596075;
+  --linea: #d3d8e1;
+  --peligro: #b3261e;
+  --aviso-fondo: #fff1c9;
+
+  --deuda: #d9413b;
+  --contrato: #2b63e8;
+  --suscripcion: #e0a100;
+
+  --cifras: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --texto: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --fondo: #101418;
-    --tarjeta: #1a2027;
-    --texto: #e8ecf0;
-    --suave: #9aa5b1;
-    --borde: #2c353f;
-    --acento: #2dd4bf;
-    --acento-texto: #04201c;
+    --papel: #0f1120;
+    --superficie: #171a2e;
+    --tinta: #eef0f8;
+    --tinta-suave: #9aa1b8;
+    --linea: #2a2e47;
     --peligro: #ff8a80;
     --aviso-fondo: #3b3213;
-    --deuda: #ff8a80;
-    --contrato: #8ab4ff;
-    --suscripcion: #c4a7ff;
+
+    --deuda: #ff6b63;
+    --contrato: #6e9bff;
+    --suscripcion: #f2bb2e;
+    --libera: #4fd49a;
   }
 }
+
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
-  background: var(--fondo);
-  color: var(--texto);
-  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--papel);
+  color: var(--tinta);
+  font: 16px/1.45 var(--texto);
+  -webkit-tap-highlight-color: transparent;
 }
 main {
-  max-width: 640px;
+  max-width: 560px;
   margin: 0 auto;
-  padding: 16px 16px calc(84px + env(safe-area-inset-bottom));
-  padding-top: calc(16px + env(safe-area-inset-top));
+  padding: calc(20px + env(safe-area-inset-top)) 20px calc(96px + env(safe-area-inset-bottom));
 }
-h1, h2, h3 { margin: 0 0 12px; line-height: 1.2; }
-h2 { font-size: 1.4rem; }
-h3 { font-size: 1.05rem; color: var(--suave); }
-.tarjeta {
-  background: var(--tarjeta);
-  border: 1px solid var(--borde);
-  border-radius: 14px;
-  padding: 14px;
-  margin-bottom: 12px;
-}
-.fila { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.importe { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
-.grande { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.suave { color: var(--suave); font-size: 0.9rem; }
-.etiqueta { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
-.etiqueta.deuda { color: var(--deuda); }
-.etiqueta.contrato { color: var(--contrato); }
-.etiqueta.suscripcion { color: var(--suscripcion); }
+h2 { margin: 0 0 16px; font-size: 1.15rem; font-weight: 650; letter-spacing: -0.01em; }
+h3 { margin: 28px 0 8px; font-size: 0.95rem; font-weight: 650; color: var(--tinta-suave); }
+p { margin: 0 0 8px; }
+.suave { color: var(--tinta-suave); font-size: 0.9rem; }
+.num { font-family: var(--cifras); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }
+
 #aviso {
   background: var(--aviso-fondo);
-  border-bottom: 1px solid var(--borde);
-  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  border-bottom: 1px solid var(--linea);
+  padding: calc(10px + env(safe-area-inset-top)) 20px 10px;
   font-size: 0.9rem;
 }
-button, select, input {
-  font: inherit;
-  color: inherit;
+
+/* ---------- Resumen ---------- */
+.mes { margin: 0; color: var(--tinta-suave); font-size: 0.95rem; }
+.total { margin: 2px 0 0; font-size: clamp(2.7rem, 15vw, 4.1rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.035em; }
+.total-pie { margin: 2px 0 20px; color: var(--tinta-suave); }
+
+.cinta-con-nota { position: relative; padding-top: 24px; }
+.nota { position: absolute; top: 0; font-size: 0.8rem; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.cinta {
+  --n: 31;
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+  gap: 2px;
+  height: 128px;
+  align-items: end;
 }
+.cinta .dia {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transform-origin: bottom;
+}
+.cinta .dia::after { /* línea base: cada día existe aunque no se cobre nada */
+  content: "";
+  height: 2px;
+  margin-top: 2px;
+  background: var(--linea);
+  border-radius: 1px;
+}
+.cinta .dia.hoy::after { height: 4px; background: var(--tinta); border-radius: 2px; }
+.cinta .barra { display: flex; flex-direction: column; min-height: 0; border-radius: 3px 3px 0 0; overflow: hidden; }
+.seg { display: block; flex-basis: 0; min-height: 3px; }
+.seg.deuda { background: var(--deuda); }
+.seg.contrato { background: var(--contrato); }
+.seg.suscripcion { background: var(--suscripcion); }
+
+.eje {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 31), 1fr);
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--tinta-suave);
+  font-variant-numeric: tabular-nums;
+}
+.leyenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 0; padding: 0; list-style: none; font-size: 0.85rem; color: var(--tinta-suave); }
+.leyenda li { display: flex; align-items: center; gap: 6px; }
+.punto { width: 10px; height: 10px; border-radius: 3px; background: var(--tinta); }
+.punto.deuda { background: var(--deuda); }
+.punto.contrato { background: var(--contrato); }
+.punto.suscripcion { background: var(--suscripcion); }
+.punto.hoy { height: 4px; border-radius: 2px; }
+
+.dejar { margin: 32px 0 0; padding: 18px 0 4px; border-top: 1px solid var(--linea); }
+.dejar .grande { margin: 0; font-size: 2.2rem; font-weight: 700; letter-spacing: -0.03em; }
+.filas { margin: 0; padding: 0; list-style: none; }
+.filas > li, .item { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--linea); }
+.filas > li:last-child { border-bottom: 0; }
+.importe { font-family: var(--cifras); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.desglose { display: flex; height: 10px; gap: 2px; margin: 6px 0 4px; }
+.desglose .seg { border-radius: 3px; min-width: 6px; }
+
+/* ---------- Pagos ---------- */
+.barra-superior { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 8px; }
+.barra-superior label { flex: 1; margin: 0; }
+.item { align-items: stretch; flex-direction: column; gap: 4px; padding-left: 14px; border-left: 4px solid var(--tinta-suave); }
+.item.deuda { border-left-color: var(--deuda); }
+.item.contrato { border-left-color: var(--contrato); }
+.item.suscripcion { border-left-color: var(--suscripcion); }
+.item .fila { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.tipo { font-size: 0.8rem; font-weight: 650; color: var(--tinta-suave); }
+.acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+/* ---------- Calendario ---------- */
+.cuadricula { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px; }
+.cuadricula .cab { text-align: center; font-size: 0.75rem; color: var(--tinta-suave); padding-bottom: 2px; }
+.celda {
+  position: relative;
+  aspect-ratio: 1 / 1.05;
+  border-radius: 8px;
+  padding: 5px 6px;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.celda.vacia { visibility: hidden; }
+.celda::before { content: ""; position: absolute; inset: 0; background: var(--tinta); opacity: calc(var(--nivel, 0) * 0.16); }
+.celda > * { position: relative; }
+.celda.hoy { outline: 2px solid var(--tinta); outline-offset: -2px; font-weight: 700; }
+.celda .puntos { display: flex; gap: 3px; }
+.celda .punto { width: 7px; height: 7px; border-radius: 50%; }
+
+.proyeccion { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; height: 110px; align-items: end; }
+.barra-mes { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; }
+.barra-mes .relleno { background: var(--tinta); border-radius: 3px 3px 0 0; min-height: 3px; transform-origin: bottom; }
+.barra-mes.libera .relleno { background: var(--libera); }
+.nombres-meses { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; margin-top: 6px; font-size: 0.7rem; color: var(--tinta-suave); text-align: center; }
+
+/* ---------- Formularios y botones ---------- */
+.tarjeta { background: var(--superficie); border: 1px solid var(--linea); border-radius: 14px; padding: 16px; margin: 0 0 14px; }
+.tarjeta h3 { margin-top: 0; }
+button, select, input { font: inherit; color: inherit; }
 button {
   min-height: 44px;
-  padding: 0 14px;
-  border-radius: 10px;
-  border: 1px solid var(--borde);
-  background: var(--tarjeta);
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--linea);
+  background: var(--superficie);
+  transition: transform 120ms var(--ease-out);
 }
-button.primario { background: var(--acento); color: var(--acento-texto); border-color: var(--acento); font-weight: 600; }
+button:active { transform: scale(0.97); }
+button.texto { min-height: 40px; padding: 0 14px 0 0; border: 0; background: transparent; color: var(--tinta-suave); font-size: 0.9rem; }
+button.texto.peligro { color: var(--peligro); }
+button.primario { background: var(--tinta); color: var(--papel); border-color: var(--tinta); font-weight: 650; }
 button.peligro { color: var(--peligro); }
-.acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-label { display: block; margin-bottom: 10px; font-size: 0.9rem; color: var(--suave); }
+label { display: block; margin-bottom: 12px; font-size: 0.9rem; color: var(--tinta-suave); }
 label input, label select {
   display: block;
   width: 100%;
   min-height: 44px;
   margin-top: 4px;
-  padding: 0 10px;
-  border: 1px solid var(--borde);
+  padding: 0 12px;
+  border: 1px solid var(--linea);
   border-radius: 10px;
-  background: var(--fondo);
-  color: var(--texto);
+  background: var(--papel);
+  color: var(--tinta);
 }
 .error { color: var(--peligro); font-weight: 600; margin: 8px 0 0; }
+
+/* ---------- Barra inferior ---------- */
 #barra {
   position: fixed;
   left: 0; right: 0; bottom: 0;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  background: var(--tarjeta);
-  border-top: 1px solid var(--borde);
+  background: var(--superficie);
+  border-top: 1px solid var(--linea);
   padding-bottom: env(safe-area-inset-bottom);
 }
-#barra button { border: 0; border-radius: 0; background: transparent; min-height: 56px; font-size: 0.85rem; color: var(--suave); }
-#barra button[aria-current="page"] { color: var(--acento); font-weight: 700; }
-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-th, td { text-align: right; padding: 6px 4px; border-bottom: 1px solid var(--borde); font-size: 0.9rem; }
-th:first-child, td:first-child { text-align: left; }
+#barra button {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 58px; padding: 0;
+  border: 0; border-radius: 0; background: transparent;
+  font-size: 0.72rem; color: var(--tinta-suave);
+}
+#barra button svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#barra button[aria-current="page"] { color: var(--tinta); font-weight: 650; }
+.indicador { position: absolute; top: -1px; left: 0; width: 25%; height: 3px; display: grid; place-items: center; transition: transform 200ms var(--ease-in-out); }
+.indicador::after { content: ""; width: 32px; height: 3px; border-radius: 0 0 3px 3px; background: var(--tinta); }
+
+/* ---------- Movimiento ---------- */
+/* Solo la apertura de la app tiene una secuencia; el resto del uso diario es casi imperceptible. */
+@keyframes sube {
+  from { transform: scaleY(0.08); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.cinta.entra .dia { animation: sube 420ms var(--ease-out) backwards; animation-delay: calc(var(--i) * 14ms); }
+@keyframes aparece { from { opacity: 0; } to { opacity: 1; } }
+.cinta-con-nota.entra .nota { animation: aparece 240ms var(--ease-out) 450ms backwards; }
+.proyeccion.entra .relleno { animation: sube 420ms var(--ease-out) backwards; animation-delay: calc(var(--i) * 30ms); }
+
+@media (hover: hover) and (pointer: fine) {
+  button:hover { border-color: var(--tinta-suave); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cinta.entra .dia, .proyeccion.entra .relleno, .cinta-con-nota.entra .nota { animation: none; }
+  .indicador { transition: none; }
+  button { transition: none; }
+  button:active { transform: none; }
+}

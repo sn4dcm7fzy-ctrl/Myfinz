@@ -14,7 +14,7 @@ export function cerrarFormulario() {
 
 export function render(raiz, ctx) {
   raiz.replaceChildren(
-    el('h2', {}, 'Pagos'),
+    el('h2', { style: 'font-size:1.6rem;letter-spacing:-0.02em' }, 'Pagos'),
     formulario ? vistaFormulario(raiz, ctx) : barraSuperior(raiz, ctx),
     ...(formulario ? [] : lista(raiz, ctx)),
   );
@@ -30,8 +30,8 @@ function barraSuperior(raiz, ctx) {
   );
   return el(
     'div',
-    { class: 'fila', style: 'margin-bottom:12px' },
-    el('label', { style: 'margin:0;flex:1' }, 'Mostrar', selector),
+    { class: 'barra-superior' },
+    el('label', {}, 'Mostrar', selector),
     el('button', { type: 'button', class: 'primario', onclick: () => { formulario = { pago: null }; render(raiz, ctx); } }, 'Añadir pago'),
   );
 }
@@ -57,14 +57,14 @@ function tarjetaPago(raiz, ctx, pago) {
   }
   return el(
     'div',
-    { class: 'tarjeta' },
+    { class: `item ${pago.tipo}` },
     el('div', { class: 'fila' },
-      el('div', {}, el('div', { class: `etiqueta ${pago.tipo}` }, ETIQUETA_TIPO[pago.tipo]), el('strong', {}, pago.nombre)),
+      el('div', {}, el('div', { class: 'tipo' }, ETIQUETA_TIPO[pago.tipo]), el('strong', {}, pago.nombre)),
       el('span', { class: 'importe' }, formatearEuros(pago.importe))),
     el('div', { class: 'suave' }, detalle.join(' · ')),
     el('div', { class: 'acciones' },
-      el('button', { type: 'button', onclick: () => { formulario = { pago }; render(raiz, ctx); } }, 'Editar'),
-      el('button', { type: 'button', class: 'peligro', onclick: () => borrar(raiz, ctx, pago) }, 'Borrar')),
+      el('button', { type: 'button', class: 'texto', onclick: () => { formulario = { pago }; render(raiz, ctx); } }, 'Editar'),
+      el('button', { type: 'button', class: 'texto peligro', onclick: () => borrar(raiz, ctx, pago) }, 'Borrar')),
   );
 }
 

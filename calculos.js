@@ -26,7 +26,7 @@ export function estaActivo(pago, mes) {
   return pago.mesFin === null || mes <= pago.mesFin;
 }
 
-function diasDelMes(mes) {
+export function diasDelMes(mes) {
   const { anio, m } = partesMes(mes);
   if (m === 2) {
     const bisiesto = (anio % 4 === 0 && anio % 100 !== 0) || anio % 400 === 0;
@@ -119,4 +119,39 @@ export function proyeccion(pagos, mesInicial, meses) {
     resultado.push({ mes, total: totalDelMes(pagos, mes).total, liberado });
   }
   return resultado;
+}
+
+// Día de la semana del día 1 del mes, con el lunes como 0 (algoritmo de Sakamoto).
+function diaSemanaDelPrimero(mes) {
+  const { anio, m } = partesMes(mes);
+  const t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+  const y = m < 3 ? anio - 1 : anio;
+  const domingoCero = (y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) + t[m - 1] + 1) % 7;
+  return (domingoCero + 6) % 7;
+}
+
+// Semanas de lunes a domingo; los huecos antes del día 1 y después del último día son null.
+export function semanasDelMes(mes) {
+  const celdas = [...Array(diaSemanaDelPrimero(mes)).fill(null)];
+  for (let d = 1; d <= diasDelMes(mes); d++) celdas.push(d);
+  while (celdas.length % 7 !== 0) celdas.push(null);
+  const semanas = [];
+  for (let i = 0; i < celdas.length; i += 7) semanas.push(celdas.slice(i, i + 7));
+  return semanas;
+}
+
+// Una entrada por día del mes con lo que se cobra ese día (los pagos sin fecha no entran).
+export function importesPorDia(pagos, mes) {
+  const dias = Array.from({ length: diasDelMes(mes) }, (_, i) => ({
+    dia: i + 1,
+    total: 0,
+    porTipo: { deuda: 0, contrato: 0, suscripcion: 0 },
+  }));
+  for (const pago of pagos) {
+    if (pago.dia === null || !estaActivo(pago, mes)) continue;
+    const entrada = dias[diaEfectivo(pago.dia, mes) - 1];
+    entrada.total += pago.importe;
+    entrada.porTipo[pago.tipo] += pago.importe;
+  }
+  return dias;
 }

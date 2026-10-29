@@ -12,6 +12,7 @@ const ARCHIVOS = [
   'calculos.js',
   'almacen.js',
   'ui/util.js',
+  'ui/movimiento.js',
   'ui/pagos.js',
   'ui/resumen.js',
   'ui/calendario.js',
