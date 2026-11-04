@@ -53,7 +53,7 @@ export function render(raiz, ctx, mensajeInicial) {
   const importar = async (e) => {
     const archivo = e.target.files[0];
     if (!archivo) return;
-    const r = importarJSON(await archivo.text());
+    const r = importarJSON(await archivo.text(), ctx.mes);
     e.target.value = '';
     if (!r.ok) {
       return decir(r.error === 'version-futura'

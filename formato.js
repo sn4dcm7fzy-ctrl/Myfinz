@@ -33,3 +33,11 @@ export function parsearEuros(texto) {
 
   return Number(enteros) * 100 + Number(decimales.padEnd(2, '0'));
 }
+
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+// '2026-11' -> 'Noviembre 2026'
+export function nombreMes(mes) {
+  const [anio, m] = mes.split('-').map(Number);
+  return `${MESES[m - 1]} ${anio}`;
+}

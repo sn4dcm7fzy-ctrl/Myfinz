@@ -21,9 +21,64 @@ export function mesFinDesdeCuotas(mesActual, cuotas) {
   return sumarMes(mesActual, cuotas - 1);
 }
 
-// 'YYYY-MM' se compara bien como texto.
+// 'YYYY-MM' se compara bien como texto. mesInicio ausente o null = sin límite por delante.
 export function estaActivo(pago, mes) {
+  if (pago.mesInicio && mes < pago.mesInicio) return false;
   return pago.mesFin === null || mes <= pago.mesFin;
+}
+
+// El inicio nunca va después del fin: un pago ya terminado empieza (y se ve) en su último mes.
+export function mesInicioPara(mesInicio, mesFin) {
+  return mesInicio !== null && mesFin !== null && mesFin < mesInicio ? mesFin : mesInicio;
+}
+
+export function estaPagado(pago, mes) {
+  return Object.hasOwn(pago.pagados ?? {}, mes);
+}
+
+// Marca el mes como pagado y baja el saldo (nunca por debajo de 0). Anota lo descontado para poder deshacerlo exacto.
+export function marcarPagado(pago, mes) {
+  if (!estaActivo(pago, mes) || estaPagado(pago, mes)) return pago;
+  const descontado = pago.saldo === null ? 0 : Math.min(pago.saldo, pago.importe);
+  return {
+    ...pago,
+    saldo: pago.saldo === null ? null : pago.saldo - descontado,
+    pagados: { ...pago.pagados, [mes]: descontado },
+  };
+}
+
+export function desmarcarPagado(pago, mes) {
+  if (!estaPagado(pago, mes)) return pago;
+  const { [mes]: descontado, ...resto } = pago.pagados;
+  return {
+    ...pago,
+    saldo: pago.saldo === null ? null : pago.saldo + descontado,
+    pagados: resto,
+  };
+}
+
+// Lo que sale de la cuenta este mes: total de pagos activos, lo ya marcado y lo que falta. Sin reembolsos.
+export function resumenPagado(pagos, mes) {
+  let total = 0;
+  let pagado = 0;
+  for (const pago of pagos) {
+    if (!estaActivo(pago, mes)) continue;
+    total += pago.importe;
+    if (estaPagado(pago, mes)) pagado += pago.importe;
+  }
+  return { total, pagado, falta: total - pagado };
+}
+
+// Sube (-1) o baja (1) un pago respecto a su vecino visible. `visibles` son los ids en el orden que se ve.
+export function moverPago(pagos, id, direccion, visibles) {
+  const posicion = visibles.indexOf(id);
+  const vecino = visibles[posicion + direccion];
+  if (posicion === -1 || vecino === undefined) return pagos;
+  const a = pagos.findIndex((p) => p.id === id);
+  const b = pagos.findIndex((p) => p.id === vecino);
+  const nueva = [...pagos];
+  [nueva[a], nueva[b]] = [nueva[b], nueva[a]];
+  return nueva;
 }
 
 export function diasDelMes(mes) {

@@ -1,10 +1,11 @@
 // Pantalla Pagos: lista con filtro y formulario para añadir, editar y borrar.
-import { formatearEuros, parsearEuros } from '../formato.js';
-import { mesFinDesdeCuotas } from '../calculos.js';
+import { formatearEuros, parsearEuros, nombreMes } from '../formato.js';
+import { mesFinDesdeCuotas, mesInicioPara, estaActivo, estaPagado, marcarPagado, desmarcarPagado, resumenPagado, moverPago, sumarMes } from '../calculos.js';
 import { validar } from '../almacen.js';
 import { el, generarId, ETIQUETA_TIPO } from './util.js';
 
 let filtro = 'todos';
+let mesVista = null; // null = el mes actual; solo vive en memoria
 let formulario = null; // null = cerrado; { pago: Pago|null } = abierto (null = pago nuevo)
 
 // Al salir de la pantalla se descarta el formulario: podria apuntar a un pago que ya no existe.
@@ -16,8 +17,26 @@ export function render(raiz, ctx) {
   raiz.replaceChildren(
     el('h2', { style: 'font-size:1.6rem;letter-spacing:-0.02em' }, 'Pagos'),
     formulario ? vistaFormulario(raiz, ctx) : barraSuperior(raiz, ctx),
-    ...(formulario ? [] : lista(raiz, ctx)),
+    ...(formulario ? [] : [navegacionMes(raiz, ctx), resumenDelMes(ctx), ...lista(raiz, ctx)]),
   );
+}
+
+const mesElegido = (ctx) => mesVista ?? ctx.mes;
+
+function navegacionMes(raiz, ctx) {
+  const ir = (n) => { mesVista = sumarMes(mesElegido(ctx), n); render(raiz, ctx); };
+  return el('div', { class: 'nav-mes' },
+    el('button', { type: 'button', 'aria-label': 'Mes anterior', onclick: () => ir(-1) }, '‹'),
+    el('strong', {}, nombreMes(mesElegido(ctx))),
+    el('button', { type: 'button', 'aria-label': 'Mes siguiente', onclick: () => ir(1) }, '›'));
+}
+
+function resumenDelMes(ctx) {
+  const { total, pagado, falta } = resumenPagado(ctx.estado.pagos, mesElegido(ctx));
+  const parte = total === 0 ? 0 : pagado / total;
+  return el('div', { class: 'resumen-mes' },
+    el('div', {}, `Pagado ${formatearEuros(pagado)} · Falta ${formatearEuros(falta)}`),
+    el('div', { class: 'barra-progreso', 'aria-hidden': 'true' }, el('div', { class: 'relleno', style: `--p:${parte}` })));
 }
 
 function barraSuperior(raiz, ctx) {
@@ -37,16 +56,31 @@ function barraSuperior(raiz, ctx) {
 }
 
 function lista(raiz, ctx) {
-  const pagos = ctx.estado.pagos.filter((p) => filtro === 'todos' || p.tipo === filtro);
+  const mes = mesElegido(ctx);
+  const delMes = ctx.estado.pagos.filter((p) => estaActivo(p, mes));
+  const pagos = delMes.filter((p) => filtro === 'todos' || p.tipo === filtro);
   if (pagos.length === 0) {
     return [el('p', { class: 'suave' }, ctx.estado.pagos.length === 0
       ? 'Todavía no hay pagos. Pulsa «Añadir pago» para empezar.'
-      : 'No hay pagos de este tipo.')];
+      : delMes.length === 0 ? 'No hay pagos este mes.' : 'No hay pagos de este tipo.')];
   }
-  return pagos.map((pago) => tarjetaPago(raiz, ctx, pago));
+  const ids = pagos.map((p) => p.id);
+  return pagos.map((pago, i) => tarjetaPago(raiz, ctx, pago, mes, ids, i));
 }
 
-function tarjetaPago(raiz, ctx, pago) {
+function cambiarPago(raiz, ctx, nuevo) {
+  ctx.estado.pagos = ctx.estado.pagos.map((p) => (p.id === nuevo.id ? nuevo : p));
+  ctx.persistir();
+  render(raiz, ctx);
+}
+
+function tarjetaPago(raiz, ctx, pago, mes, ids, indice) {
+  const pagado = estaPagado(pago, mes);
+  const mover = (direccion) => {
+    ctx.estado.pagos = moverPago(ctx.estado.pagos, pago.id, direccion, ids);
+    ctx.persistir();
+    render(raiz, ctx);
+  };
   const detalle = [
     pago.dia === null ? 'sin fecha de cobro' : `cobra el día ${pago.dia}`,
     pago.mesFin === null ? 'sin fin' : `hasta ${pago.mesFin}`,
@@ -57,12 +91,19 @@ function tarjetaPago(raiz, ctx, pago) {
   }
   return el(
     'div',
-    { class: `item ${pago.tipo}` },
+    { class: `item ${pago.tipo}${pagado ? ' pagado' : ''}` },
     el('div', { class: 'fila' },
-      el('div', {}, el('div', { class: 'tipo' }, ETIQUETA_TIPO[pago.tipo]), el('strong', {}, pago.nombre)),
+      el('button', {
+        type: 'button', class: 'check', 'aria-pressed': String(pagado),
+        'aria-label': pagado ? 'Marcar como no pagado' : 'Marcar como pagado',
+        onclick: () => cambiarPago(raiz, ctx, pagado ? desmarcarPagado(pago, mes) : marcarPagado(pago, mes)),
+      }, el('span', { 'aria-hidden': 'true' }, '✓')),
+      el('div', { class: 'nombre' }, el('div', { class: 'tipo' }, ETIQUETA_TIPO[pago.tipo]), el('strong', {}, pago.nombre)),
       el('span', { class: 'importe' }, formatearEuros(pago.importe))),
     el('div', { class: 'suave' }, detalle.join(' · ')),
     el('div', { class: 'acciones' },
+      el('button', { type: 'button', class: 'mover', 'aria-label': 'Subir', disabled: indice === 0, onclick: () => mover(-1) }, '▲'),
+      el('button', { type: 'button', class: 'mover', 'aria-label': 'Bajar', disabled: indice === ids.length - 1, onclick: () => mover(1) }, '▼'),
       el('button', { type: 'button', class: 'texto', onclick: () => { formulario = { pago }; render(raiz, ctx); } }, 'Editar'),
       el('button', { type: 'button', class: 'texto peligro', onclick: () => borrar(raiz, ctx, pago) }, 'Borrar')),
   );
@@ -134,6 +175,13 @@ function vistaFormulario(raiz, ctx) {
     const reembolso = opcional(campos.reembolso, 'El reembolso');
     if (reembolso.error) return mostrarError(reembolso.error);
 
+    const mesInicio = mesInicioPara(previo ? previo.mesInicio : ctx.mes, mesFin);
+    const marcadosFuera = Object.keys(previo?.pagados ?? {})
+      .filter((m) => (mesFin !== null && m > mesFin) || (mesInicio !== null && m < mesInicio)).sort();
+    if (marcadosFuera.length > 0) {
+      return mostrarError(`Este pago tiene marcado ${nombreMes(marcadosFuera[0])}, fuera del nuevo rango. Desmárcalo antes de acortar el pago.`);
+    }
+
     const nuevo = {
       id: previo?.id ?? generarId(),
       nombre: campos.nombre.value.trim(),
@@ -144,6 +192,8 @@ function vistaFormulario(raiz, ctx) {
       saldo: saldo.valor,
       reembolso: reembolso.valor,
       reembolsoDe: campos.reembolsoDe.value.trim() || null,
+      pagados: previo?.pagados ?? {},
+      mesInicio,
     };
     const pagos = previo
       ? ctx.estado.pagos.map((p) => (p.id === previo.id ? nuevo : p))

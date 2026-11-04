@@ -1,7 +1,8 @@
 // Datos de la app: validar, migrar, exportar e importar. Sin DOM.
+import { mesInicioPara } from './calculos.js';
 // Todos los importes son céntimos enteros. El formato lleva `version` para poder migrarlo.
 
-export const VERSION = 1;
+export const VERSION = 2;
 const TIPOS = ['deuda', 'contrato', 'suscripcion'];
 
 export function datosVacios() {
@@ -32,6 +33,14 @@ function validarPago(p, i, ids) {
     const v = p[campo] ?? null;
     if (v !== null && !esEntero(v)) return `${donde}.${campo} debe ser un entero de céntimos, 0 o más`;
   }
+  const mesInicio = p.mesInicio ?? null;
+  if (mesInicio !== null && !esMes(mesInicio)) return `${donde}.mesInicio debe ser AAAA-MM`;
+  if (mesInicio !== null && mesFin !== null && mesInicio > mesFin) return `${donde}.mesInicio no puede ser posterior a mesFin`;
+  const pagados = p.pagados ?? {};
+  if (pagados === null || typeof pagados !== 'object' || Array.isArray(pagados)
+    || !Object.entries(pagados).every(([mes, v]) => esMes(mes) && esEntero(v))) {
+    return `${donde}.pagados no es válido`;
+  }
   const reembolsoDe = p.reembolsoDe ?? null;
   if (reembolsoDe !== null && (typeof reembolsoDe !== 'string' || reembolsoDe.length > 60)) {
     return `${donde}.reembolsoDe debe ser un texto de hasta 60 caracteres`;
@@ -40,7 +49,8 @@ function validarPago(p, i, ids) {
 }
 
 // Devuelve una copia normalizada (campos opcionales a null); no modifica la entrada.
-export function validar(obj) {
+// Los datos de versión 1 se migran a la 2: sus pagos empiezan en `mes` (null = sin límite).
+export function validar(obj, mes = null) {
   if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
     return { ok: false, error: 'Los datos deben ser un objeto' };
   }
@@ -69,6 +79,8 @@ export function validar(obj) {
     saldo: p.saldo ?? null,
     reembolso: p.reembolso ?? null,
     reembolsoDe: p.reembolsoDe ?? null,
+    pagados: { ...(p.pagados ?? {}) },
+    mesInicio: obj.version === 1 ? mesInicioPara(mes, p.mesFin ?? null) : (p.mesInicio ?? null),
   }));
   return { ok: true, datos: { version: VERSION, ingresos: obj.ingresos, pagos } };
 }
@@ -77,21 +89,22 @@ export function exportarJSON(datos) {
   return JSON.stringify(datos, null, 2);
 }
 
-export function importarJSON(texto) {
+export function importarJSON(texto, mes = null) {
   let obj;
   try {
     obj = JSON.parse(texto);
   } catch {
     return { ok: false, error: 'El archivo no es un JSON válido' };
   }
-  return validar(obj);
+  return validar(obj, mes);
 }
 
 export const CLAVE = 'mis-pagos-v1';
 
 // `storage` solo necesita getItem(clave) y setItem(clave, texto), como localStorage.
 // Nunca escribe al cargar: si lo guardado está corrupto, se deja intacto.
-export function cargar(storage) {
+// `migrado` avisa de que lo guardado era versión 1: quien llama debe guardarlo ya migrado.
+export function cargar(storage, mes = null) {
   let texto;
   try {
     texto = storage.getItem(CLAVE);
@@ -99,9 +112,10 @@ export function cargar(storage) {
     return { datos: datosVacios(), aviso: 'sin-almacenamiento' };
   }
   if (texto === null || texto === undefined) return { datos: datosVacios() };
-  const r = importarJSON(texto);
+  const r = importarJSON(texto, mes);
   if (!r.ok) return { datos: datosVacios(), aviso: 'datos-corruptos' };
-  return { datos: r.datos };
+  const migrado = JSON.parse(texto).version === 1;
+  return migrado ? { datos: r.datos, migrado } : { datos: r.datos };
 }
 
 export function guardar(storage, datos) {

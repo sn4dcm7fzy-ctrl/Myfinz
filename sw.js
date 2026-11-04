@@ -2,7 +2,7 @@
 // Estrategia: se sirve al instante lo guardado y se renueva en segundo plano; la versión nueva
 // se ve en la siguiente apertura. Si se añade o quita un archivo de la app, actualiza ARCHIVOS.
 const PREFIJO = 'mis-pagos-';
-const VERSION = `${PREFIJO}cache-1`;
+const VERSION = `${PREFIJO}cache-2`;
 const ARCHIVOS = [
   './',
   'index.html',

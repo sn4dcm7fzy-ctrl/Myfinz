@@ -21,7 +21,7 @@ function obtenerStorage() {
 }
 
 const storage = obtenerStorage();
-const { datos, aviso } = cargar(storage);
+const { datos, aviso, migrado } = cargar(storage, mesActual());
 
 // Si lo guardado estaba corrupto, se conserva una copia antes de que un guardado nuevo lo pise.
 if (aviso === 'datos-corruptos') {
@@ -53,6 +53,9 @@ export const ctx = {
   },
   mostrar,
 };
+
+// Los datos de la versión 1 se guardan ya migrados: así mesInicio no cambia al abrir la app otro mes.
+if (migrado) ctx.persistir();
 
 const ORDEN = ['resumen', 'pagos', 'calendario', 'ajustes'];
 const indicador = document.querySelector('.indicador');
