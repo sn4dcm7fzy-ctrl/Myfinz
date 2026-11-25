@@ -3,6 +3,7 @@ import { formatearEuros, parsearEuros } from '../formato.js';
 import { datosVacios, exportarJSON, importarJSON } from '../almacen.js';
 import { el, montar, hoyISO } from './util.js';
 import { tarjetaPerfiles } from './perfiles.js';
+import { t, idioma, IDIOMAS, NOMBRE_IDIOMA } from '../i18n.js';
 
 export function render(raiz, ctx, mensajeInicial) {
   const mensaje = el('p', { role: 'status' });
@@ -23,10 +24,10 @@ export function render(raiz, ctx, mensajeInicial) {
     e.preventDefault();
     const texto = campoIngresos.value.trim();
     const cent = texto === '' ? 0 : parsearEuros(texto);
-    if (cent === null) return decir('Los ingresos no son válidos. Ejemplo: 1.200,00', true);
+    if (cent === null) return decir(t('ajustes.ingresos.error'), true);
     ctx.estado.ingresos = cent;
     ctx.persistir();
-    decir('Ingresos guardados.');
+    decir(t('ajustes.ingresos.guardados'));
   };
 
   const exportar = async () => {
@@ -37,7 +38,7 @@ export function render(raiz, ctx, mensajeInicial) {
     if (navigator.canShare?.({ files: [archivo] })) {
       try {
         await navigator.share({ files: [archivo] });
-        return decir('Copia lista. Guárdala en un sitio seguro: contiene tus datos.');
+        return decir(t('ajustes.copia.lista'));
       } catch (e) {
         if (e.name === 'AbortError') return; // el usuario cerró el menú de compartir
       }
@@ -48,7 +49,7 @@ export function render(raiz, ctx, mensajeInicial) {
     enlace.click();
     enlace.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    decir('Copia exportada. Guárdala en un sitio seguro: contiene tus datos.');
+    decir(t('ajustes.copia.exportada'));
   };
 
   const importar = async (e) => {
@@ -58,45 +59,55 @@ export function render(raiz, ctx, mensajeInicial) {
     e.target.value = '';
     if (!r.ok) {
       return decir(r.error === 'version-futura'
-        ? 'Esa copia es de una versión más nueva de la app. No se ha cambiado nada.'
-        : `No se pudo importar: ${r.error}. No se ha cambiado nada.`, true);
+        ? t('ajustes.importar.futura')
+        : t('ajustes.importar.error', { error: r.error }), true);
     }
-    if (!confirm(`Esto reemplaza todos tus perfiles por la copia (${r.datos.perfiles.length} ${r.datos.perfiles.length === 1 ? 'perfil' : 'perfiles'}). ¿Continuar?`)) return;
+    const n = r.datos.perfiles.length;
+    if (!confirm(t('ajustes.importar.confirmar', { n, perfiles: t(n === 1 ? 'perfil.uno' : 'perfil.varios') }))) return;
     ctx.datos = r.datos;
     ctx.persistir();
-    ctx.alCambiarPerfiles('Copia importada.');
+    ctx.alCambiarPerfiles(t('ajustes.importar.hecho'));
   };
 
   const borrarTodo = () => {
-    if (!confirm('Se borrarán todos los perfiles, pagos e ingresos de este iPhone. ¿Seguro?')) return;
+    if (!confirm(t('ajustes.borrar.confirmar'))) return;
     ctx.datos = datosVacios();
     ctx.persistir();
-    ctx.alCambiarPerfiles('Todo borrado.');
+    ctx.alCambiarPerfiles(t('ajustes.borrar.hecho'));
   };
 
   montar(raiz,
-    el('h2', {}, 'Ajustes'),
+    el('h2', {}, t('ajustes.titulo')),
     mensaje, // arriba: así se ve sin bajar, sobre todo lo que dice la tarjeta de perfiles
+
+    // Cada idioma con su propio nombre, para encontrarlo aunque la app esté en otro.
+    el('div', { class: 'tarjeta' },
+      el('h3', {}, t('ajustes.idioma.titulo')),
+      el('div', { class: 'acciones idiomas' },
+        IDIOMAS.map((cod) => el('button', {
+          type: 'button', class: 'idioma', lang: cod, 'aria-pressed': String(cod === idioma()),
+          onclick: () => { if (cod !== idioma()) ctx.cambiarIdioma(cod); },
+        }, NOMBRE_IDIOMA[cod])))),
 
     tarjetaPerfiles(ctx, decir),
 
     el('form', { class: 'tarjeta', onsubmit: guardarIngresos },
-      el('h3', {}, `Ingresos de ${ctx.estado.nombre}`),
-      el('label', {}, 'Ingresos mensuales propios (€)', campoIngresos),
-      el('p', { class: 'suave' }, 'Solo se usan para calcular qué parte se va en cuotas de deuda.'),
-      el('button', { type: 'submit', class: 'primario' }, 'Guardar ingresos')),
+      el('h3', {}, t('ajustes.ingresos.titulo', { nombre: ctx.estado.nombre })),
+      el('label', {}, t('ajustes.ingresos.campo'), campoIngresos),
+      el('p', { class: 'suave' }, t('ajustes.ingresos.ayuda')),
+      el('button', { type: 'submit', class: 'primario' }, t('ajustes.ingresos.guardar'))),
 
     el('div', { class: 'tarjeta' },
-      el('h3', {}, 'Copia de seguridad'),
-      el('p', { class: 'suave' }, 'Tus datos solo viven en este iPhone. Exporta una copia de vez en cuando por si el navegador los borra.'),
+      el('h3', {}, t('ajustes.copia.titulo')),
+      el('p', { class: 'suave' }, t('ajustes.copia.ayuda')),
       el('div', { class: 'acciones' },
-        el('button', { type: 'button', onclick: exportar }, 'Exportar copia'),
-        el('label', { style: 'margin:0' }, 'Importar copia',
+        el('button', { type: 'button', onclick: exportar }, t('ajustes.copia.exportar')),
+        el('label', { style: 'margin:0' }, t('ajustes.copia.importar'),
           el('input', { type: 'file', accept: '.json,application/json', onchange: importar })))),
 
     el('div', { class: 'tarjeta' },
-      el('h3', {}, 'Borrar todo'),
-      el('button', { type: 'button', class: 'peligro', onclick: borrarTodo }, 'Borrar todos los datos')),
+      el('h3', {}, t('ajustes.borrar.titulo')),
+      el('button', { type: 'button', class: 'peligro', onclick: borrarTodo }, t('ajustes.borrar.boton'))),
 
   );
 }

@@ -1,8 +1,9 @@
 // Pantalla Pagos: lista con filtro y formulario para añadir, editar y borrar.
-import { formatearEuros, parsearEuros, nombreMes } from '../formato.js';
+import { formatearEuros, parsearEuros } from '../formato.js';
+import { nombreMes, t } from '../i18n.js';
 import { mesFinDesdeCuotas, mesInicioPara, estaActivo, estaPagado, marcarPagado, desmarcarPagado, resumenPagado, moverPago, sumarMes } from '../calculos.js';
 import { validarPerfil } from '../almacen.js';
-import { el, generarId, ETIQUETA_TIPO } from './util.js';
+import { el, generarId, TIPOS, etiquetaTipo } from './util.js';
 
 let filtro = 'todos';
 let mesVista = null; // null = el mes actual; solo vive en memoria
@@ -21,7 +22,7 @@ export function reiniciarVista() {
 
 export function render(raiz, ctx) {
   raiz.replaceChildren(
-    el('h2', { style: 'font-size:1.6rem;letter-spacing:-0.02em' }, 'Pagos'),
+    el('h2', { style: 'font-size:1.6rem;letter-spacing:-0.02em' }, t('pagos.titulo')),
     formulario ? vistaFormulario(raiz, ctx) : barraSuperior(raiz, ctx),
     ...(formulario ? [] : [navegacionMes(raiz, ctx), resumenDelMes(ctx), ...lista(raiz, ctx)]),
   );
@@ -32,32 +33,32 @@ const mesElegido = (ctx) => mesVista ?? ctx.mes;
 function navegacionMes(raiz, ctx) {
   const ir = (n) => { mesVista = sumarMes(mesElegido(ctx), n); render(raiz, ctx); };
   return el('div', { class: 'nav-mes' },
-    el('button', { type: 'button', 'aria-label': 'Mes anterior', onclick: () => ir(-1) }, '‹'),
+    el('button', { type: 'button', 'aria-label': t('pagos.mesAnterior'), onclick: () => ir(-1) }, '‹'),
     el('strong', {}, nombreMes(mesElegido(ctx))),
-    el('button', { type: 'button', 'aria-label': 'Mes siguiente', onclick: () => ir(1) }, '›'));
+    el('button', { type: 'button', 'aria-label': t('pagos.mesSiguiente'), onclick: () => ir(1) }, '›'));
 }
 
 function resumenDelMes(ctx) {
   const { total, pagado, falta } = resumenPagado(ctx.estado.pagos, mesElegido(ctx));
   const parte = total === 0 ? 0 : pagado / total;
   return el('div', { class: 'resumen-mes' },
-    el('div', {}, `Pagado ${formatearEuros(pagado)} · Falta ${formatearEuros(falta)}`),
+    el('div', {}, t('pagos.pagadoFalta', { pagado: formatearEuros(pagado), falta: formatearEuros(falta) })),
     el('div', { class: 'barra-progreso', 'aria-hidden': 'true' }, el('div', { class: 'relleno', style: `--p:${parte}` })));
 }
 
 function barraSuperior(raiz, ctx) {
   const selector = el(
     'select',
-    { 'aria-label': 'Filtrar por tipo', onchange: (e) => { filtro = e.target.value; render(raiz, ctx); } },
-    el('option', { value: 'todos', selected: filtro === 'todos' }, 'Todos'),
-    ...Object.entries(ETIQUETA_TIPO).map(([valor, texto]) =>
-      el('option', { value: valor, selected: filtro === valor }, texto)),
+    { 'aria-label': t('pagos.filtrar'), onchange: (e) => { filtro = e.target.value; render(raiz, ctx); } },
+    el('option', { value: 'todos', selected: filtro === 'todos' }, t('pagos.todos')),
+    ...TIPOS.map((valor) =>
+      el('option', { value: valor, selected: filtro === valor }, etiquetaTipo(valor))),
   );
   return el(
     'div',
     { class: 'barra-superior' },
-    el('label', {}, 'Mostrar', selector),
-    el('button', { type: 'button', class: 'primario', onclick: () => { formulario = { pago: null }; render(raiz, ctx); } }, 'Añadir pago'),
+    el('label', {}, t('pagos.mostrar'), selector),
+    el('button', { type: 'button', class: 'primario', onclick: () => { formulario = { pago: null }; render(raiz, ctx); } }, t('pagos.anadir')),
   );
 }
 
@@ -67,8 +68,8 @@ function lista(raiz, ctx) {
   const pagos = delMes.filter((p) => filtro === 'todos' || p.tipo === filtro);
   if (pagos.length === 0) {
     return [el('p', { class: 'suave' }, ctx.estado.pagos.length === 0
-      ? 'Todavía no hay pagos. Pulsa «Añadir pago» para empezar.'
-      : delMes.length === 0 ? 'No hay pagos este mes.' : 'No hay pagos de este tipo.')];
+      ? t('pagos.vacio')
+      : delMes.length === 0 ? t('pagos.vacioMes') : t('pagos.vacioTipo'))];
   }
   const ids = pagos.map((p) => p.id);
   return pagos.map((pago, i) => tarjetaPago(raiz, ctx, pago, mes, ids, i));
@@ -88,12 +89,12 @@ function tarjetaPago(raiz, ctx, pago, mes, ids, indice) {
     render(raiz, ctx);
   };
   const detalle = [
-    pago.dia === null ? 'sin fecha de cobro' : `cobra el día ${pago.dia}`,
-    pago.mesFin === null ? 'sin fin' : `hasta ${pago.mesFin}`,
+    pago.dia === null ? t('pagos.sinFecha') : t('pagos.cobraDia', { dia: pago.dia }),
+    pago.mesFin === null ? t('pagos.sinFin') : t('pagos.hasta', { mes: pago.mesFin }),
   ];
-  if (pago.saldo !== null) detalle.push(`pendiente ${formatearEuros(pago.saldo)}`);
+  if (pago.saldo !== null) detalle.push(t('pagos.pendiente', { importe: formatearEuros(pago.saldo) }));
   if (pago.reembolso !== null) {
-    detalle.push(`te devuelven ${formatearEuros(pago.reembolso)}${pago.reembolsoDe ? ` (${pago.reembolsoDe})` : ''}`);
+    detalle.push(`${t('pagos.devuelven', { importe: formatearEuros(pago.reembolso) })}${pago.reembolsoDe ? ` (${pago.reembolsoDe})` : ''}`);
   }
   return el(
     'div',
@@ -101,22 +102,22 @@ function tarjetaPago(raiz, ctx, pago, mes, ids, indice) {
     el('div', { class: 'fila' },
       el('button', {
         type: 'button', class: 'check', 'aria-pressed': String(pagado),
-        'aria-label': pagado ? 'Marcar como no pagado' : 'Marcar como pagado',
+        'aria-label': pagado ? t('pagos.marcarNoPagado') : t('pagos.marcarPagado'),
         onclick: () => cambiarPago(raiz, ctx, pagado ? desmarcarPagado(pago, mes) : marcarPagado(pago, mes)),
       }, el('span', { 'aria-hidden': 'true' }, '✓')),
-      el('div', { class: 'nombre' }, el('div', { class: 'tipo' }, ETIQUETA_TIPO[pago.tipo]), el('strong', {}, pago.nombre)),
+      el('div', { class: 'nombre' }, el('div', { class: 'tipo' }, etiquetaTipo(pago.tipo)), el('strong', {}, pago.nombre)),
       el('span', { class: 'importe' }, formatearEuros(pago.importe))),
     el('div', { class: 'suave' }, detalle.join(' · ')),
     el('div', { class: 'acciones' },
-      el('button', { type: 'button', class: 'mover', 'aria-label': 'Subir', disabled: indice === 0, onclick: () => mover(-1) }, '▲'),
-      el('button', { type: 'button', class: 'mover', 'aria-label': 'Bajar', disabled: indice === ids.length - 1, onclick: () => mover(1) }, '▼'),
-      el('button', { type: 'button', class: 'texto', onclick: () => { formulario = { pago }; render(raiz, ctx); } }, 'Editar'),
-      el('button', { type: 'button', class: 'texto peligro', onclick: () => borrar(raiz, ctx, pago) }, 'Borrar')),
+      el('button', { type: 'button', class: 'mover', 'aria-label': t('pagos.subir'), disabled: indice === 0, onclick: () => mover(-1) }, '▲'),
+      el('button', { type: 'button', class: 'mover', 'aria-label': t('pagos.bajar'), disabled: indice === ids.length - 1, onclick: () => mover(1) }, '▼'),
+      el('button', { type: 'button', class: 'texto', onclick: () => { formulario = { pago }; render(raiz, ctx); } }, t('pagos.editar')),
+      el('button', { type: 'button', class: 'texto peligro', onclick: () => borrar(raiz, ctx, pago) }, t('pagos.borrar'))),
   );
 }
 
 function borrar(raiz, ctx, pago) {
-  if (!confirm(`¿Borrar «${pago.nombre}»?`)) return;
+  if (!confirm(t('pagos.borrarConfirmar', { nombre: pago.nombre }))) return;
   ctx.estado.pagos = ctx.estado.pagos.filter((p) => p.id !== pago.id);
   ctx.persistir();
   render(raiz, ctx);
@@ -130,14 +131,14 @@ function vistaFormulario(raiz, ctx) {
   const previo = formulario.pago;
   const campos = {
     nombre: el('input', { type: 'text', maxlength: '60', required: true, value: previo?.nombre ?? '' }),
-    tipo: el('select', {}, ...Object.entries(ETIQUETA_TIPO).map(([v, t]) =>
-      el('option', { value: v, selected: (previo?.tipo ?? 'deuda') === v }, t))),
+    tipo: el('select', {}, ...TIPOS.map((v) =>
+      el('option', { value: v, selected: (previo?.tipo ?? 'deuda') === v }, etiquetaTipo(v)))),
     importe: el('input', { type: 'text', inputmode: 'decimal', required: true, value: previo ? centimosATexto(previo.importe) : '' }),
     dia: el('input', { type: 'number', min: '1', max: '31', inputmode: 'numeric', value: previo?.dia ?? '' }),
     modoFin: el('select', {},
-      el('option', { value: 'sin', selected: !previo?.mesFin }, 'Sin fin'),
-      el('option', { value: 'cuotas' }, 'Cuotas restantes (contando este mes)'),
-      el('option', { value: 'mes', selected: !!previo?.mesFin }, 'Último mes de pago')),
+      el('option', { value: 'sin', selected: !previo?.mesFin }, t('pagos.form.sinFin')),
+      el('option', { value: 'cuotas' }, t('pagos.form.cuotasOpcion')),
+      el('option', { value: 'mes', selected: !!previo?.mesFin }, t('pagos.form.ultimoMes'))),
     cuotas: el('input', { type: 'number', min: '1', inputmode: 'numeric' }),
     mesFin: el('input', { type: 'month', value: previo?.mesFin ?? '' }),
     saldo: el('input', { type: 'text', inputmode: 'decimal', value: previo ? centimosATexto(previo.saldo) : '' }),
@@ -145,8 +146,8 @@ function vistaFormulario(raiz, ctx) {
     reembolsoDe: el('input', { type: 'text', maxlength: '60', value: previo?.reembolsoDe ?? '' }),
   };
   const error = el('p', { class: 'error', role: 'alert', hidden: true });
-  const cajaCuotas = el('label', {}, 'Cuotas restantes', campos.cuotas);
-  const cajaMes = el('label', {}, 'Último mes de pago', campos.mesFin);
+  const cajaCuotas = el('label', {}, t('pagos.form.cuotas'), campos.cuotas);
+  const cajaMes = el('label', {}, t('pagos.form.ultimoMes'), campos.mesFin);
   const actualizarFin = () => {
     cajaCuotas.hidden = campos.modoFin.value !== 'cuotas';
     cajaMes.hidden = campos.modoFin.value !== 'mes';
@@ -159,33 +160,33 @@ function vistaFormulario(raiz, ctx) {
   const guardarPago = (e) => {
     e.preventDefault();
     const importe = parsearEuros(campos.importe.value);
-    if (importe === null) return mostrarError('El importe no es válido. Ejemplo: 1.234,50');
+    if (importe === null) return mostrarError(t('pagos.error.importe'));
 
     let mesFin = null;
     if (campos.modoFin.value === 'cuotas') {
       const n = Number(campos.cuotas.value);
-      if (!Number.isInteger(n) || n < 1) return mostrarError('Las cuotas restantes deben ser un número entero de 1 o más');
+      if (!Number.isInteger(n) || n < 1) return mostrarError(t('pagos.error.cuotas'));
       mesFin = mesFinDesdeCuotas(ctx.mes, n);
     } else if (campos.modoFin.value === 'mes') {
-      if (!campos.mesFin.value) return mostrarError('Elige el último mes de pago');
+      if (!campos.mesFin.value) return mostrarError(t('pagos.error.ultimoMes'));
       mesFin = campos.mesFin.value;
     }
 
-    const opcional = (campo, nombre) => {
+    const opcional = (campo, claveError) => {
       if (campo.value.trim() === '') return { valor: null };
       const c = parsearEuros(campo.value);
-      return c === null ? { error: `${nombre} no es válido. Ejemplo: 1.234,50` } : { valor: c };
+      return c === null ? { error: t(claveError) } : { valor: c };
     };
-    const saldo = opcional(campos.saldo, 'El saldo pendiente');
+    const saldo = opcional(campos.saldo, 'pagos.error.saldo');
     if (saldo.error) return mostrarError(saldo.error);
-    const reembolso = opcional(campos.reembolso, 'El reembolso');
+    const reembolso = opcional(campos.reembolso, 'pagos.error.reembolso');
     if (reembolso.error) return mostrarError(reembolso.error);
 
     const mesInicio = mesInicioPara(previo ? previo.mesInicio : ctx.mes, mesFin);
     const marcadosFuera = Object.keys(previo?.pagados ?? {})
       .filter((m) => (mesFin !== null && m > mesFin) || (mesInicio !== null && m < mesInicio)).sort();
     if (marcadosFuera.length > 0) {
-      return mostrarError(`Este pago tiene marcado ${nombreMes(marcadosFuera[0])}, fuera del nuevo rango. Desmárcalo antes de acortar el pago.`);
+      return mostrarError(t('pagos.error.marcado', { mes: nombreMes(marcadosFuera[0]) }));
     }
 
     const nuevo = {
@@ -216,20 +217,20 @@ function vistaFormulario(raiz, ctx) {
   return el(
     'form',
     { class: 'tarjeta', novalidate: true, onsubmit: guardarPago },
-    el('h3', {}, previo ? 'Editar pago' : 'Nuevo pago'),
-    el('label', {}, 'Nombre', campos.nombre),
-    el('label', {}, 'Tipo', campos.tipo),
-    el('label', {}, 'Importe mensual (€)', campos.importe),
-    el('label', {}, 'Día de cobro (vacío = sin fecha)', campos.dia),
-    el('label', {}, 'Cuándo termina', campos.modoFin),
+    el('h3', {}, previo ? t('pagos.form.editar') : t('pagos.form.nuevo')),
+    el('label', {}, t('pagos.form.nombre'), campos.nombre),
+    el('label', {}, t('pagos.form.tipo'), campos.tipo),
+    el('label', {}, t('pagos.form.importe'), campos.importe),
+    el('label', {}, t('pagos.form.dia'), campos.dia),
+    el('label', {}, t('pagos.form.termina'), campos.modoFin),
     cajaCuotas,
     cajaMes,
-    el('label', {}, 'Saldo pendiente (€, opcional)', campos.saldo),
-    el('label', {}, 'Te lo devuelve otra persona (€ al mes, opcional)', campos.reembolso),
-    el('label', {}, '¿Quién te lo devuelve? (opcional)', campos.reembolsoDe),
+    el('label', {}, t('pagos.form.saldo'), campos.saldo),
+    el('label', {}, t('pagos.form.reembolso'), campos.reembolso),
+    el('label', {}, t('pagos.form.reembolsoDe'), campos.reembolsoDe),
     error,
     el('div', { class: 'acciones' },
-      el('button', { type: 'submit', class: 'primario' }, 'Guardar'),
-      el('button', { type: 'button', onclick: () => { formulario = null; render(raiz, ctx); } }, 'Cancelar')),
+      el('button', { type: 'submit', class: 'primario' }, t('pagos.form.guardar')),
+      el('button', { type: 'button', onclick: () => { formulario = null; render(raiz, ctx); } }, t('pagos.form.cancelar'))),
   );
 }

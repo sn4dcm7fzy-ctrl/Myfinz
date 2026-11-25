@@ -1,6 +1,8 @@
 // Perfiles en pantalla: el selector de arriba (con su menú) y la tarjeta «Perfiles» de Ajustes.
 import { crearPerfil, renombrarPerfil, borrarPerfil, elegirPerfil } from '../perfiles.js';
 import { el, montar, generarId } from './util.js';
+import { t } from '../i18n.js';
+import { MAX_NOMBRE_PERFIL } from '../almacen.js';
 import { reducirMovimiento } from './movimiento.js';
 
 let cerrarMenuAbierto = null;
@@ -19,7 +21,7 @@ export function pintarSelector(cabecera, ctx) {
         onclick: () => cambiar(p.id),
       }, p.nombre))),
     el('li', { class: 'separador' },
-      el('button', { type: 'button', onclick: () => { cerrar(); ctx.mostrar('ajustes', true); } }, 'Gestionar perfiles…')));
+      el('button', { type: 'button', onclick: () => { cerrar(); ctx.mostrar('ajustes', true); } }, t('perfil.gestionar'))));
 
   const boton = el('button', {
     type: 'button', class: 'selector-perfil', 'aria-haspopup': 'true', 'aria-expanded': 'false', 'aria-controls': 'menu-perfiles',
@@ -73,35 +75,36 @@ export function tarjetaPerfiles(ctx, decir) {
   const unico = perfiles.length === 1;
 
   const nuevo = () => {
-    const nombre = prompt('Nombre del perfil');
+    const nombre = prompt(t('perfil.pedirNombre'));
     if (nombre === null) return;
     const r = crearPerfil(ctx.datos, nombre, generarId());
-    if (!r.ok) return decir(r.error, true);
-    aplicar(ctx, r.datos, `Perfil «${nombre.trim()}» creado. Ahora estás en él.`);
+    if (!r.ok) return decir(t(r.error, { max: MAX_NOMBRE_PERFIL }), true);
+    aplicar(ctx, r.datos, t('perfil.creado', { nombre: nombre.trim() }));
   };
 
   const renombrar = (p) => {
-    const nombre = prompt('Nombre del perfil', p.nombre);
+    const nombre = prompt(t('perfil.pedirNombre'), p.nombre);
     if (nombre === null) return;
     const r = renombrarPerfil(ctx.datos, p.id, nombre);
-    if (!r.ok) return decir(r.error, true);
-    aplicar(ctx, r.datos, 'Nombre cambiado.');
+    if (!r.ok) return decir(t(r.error, { max: MAX_NOMBRE_PERFIL }), true);
+    aplicar(ctx, r.datos, t('perfil.renombrado'));
   };
 
   const borrar = (p) => {
-    if (!confirm(`Se borrará el perfil «${p.nombre}» con todos sus pagos. ¿Seguro?`)) return;
+    if (!confirm(t('perfil.borrarConfirmar', { nombre: p.nombre }))) return;
     const r = borrarPerfil(ctx.datos, p.id);
-    if (!r.ok) return decir(r.error, true);
-    aplicar(ctx, r.datos, `Perfil «${p.nombre}» borrado.`);
+    if (!r.ok) return decir(t(r.error, { max: MAX_NOMBRE_PERFIL }), true);
+    aplicar(ctx, r.datos, t('perfil.borrado', { nombre: p.nombre }));
   };
 
   return el('div', { class: 'tarjeta' },
-    el('h3', {}, 'Perfiles'),
-    el('p', { class: 'suave' }, 'Cada perfil lleva sus propios pagos e ingresos, separados de los demás.'),
+    el('h3', {}, t('perfil.titulo')),
+    el('p', { class: 'suave' }, t('perfil.ayuda')),
     el('ul', { class: 'lista-perfiles' },
       perfiles.map((p) => el('li', { class: 'fila-perfil' },
-        el('span', { class: `nombre${p.id === ctx.datos.perfilActivo ? ' activo' : ''}` }, p.nombre),
-        el('button', { type: 'button', class: 'texto', onclick: () => renombrar(p) }, 'Renombrar'),
-        el('button', { type: 'button', class: 'texto peligro', disabled: unico, onclick: () => borrar(p) }, 'Borrar')))),
-    el('button', { type: 'button', onclick: nuevo }, '+ Nuevo perfil'));
+        el('span', { class: 'nombre' }, p.nombre),
+        p.id === ctx.datos.perfilActivo ? el('span', { class: 'activo' }, `· ${t('perfil.activo')}`) : null,
+        el('button', { type: 'button', class: 'texto', onclick: () => renombrar(p) }, t('perfil.renombrar')),
+        el('button', { type: 'button', class: 'texto peligro', disabled: unico, onclick: () => borrar(p) }, t('perfil.borrar'))))),
+    el('button', { type: 'button', onclick: nuevo }, t('perfil.nuevo')));
 }

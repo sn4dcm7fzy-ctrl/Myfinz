@@ -1,22 +1,18 @@
 // Pantalla Resumen: total del mes, cinta de cobros por día, cuánto dejar en la cuenta y próximos cobros.
 import { formatearEuros } from '../formato.js';
 import { totalDelMes, porcentajeDeuda, cuantoDejar, cobrosProximos, estaActivo, importesPorDia } from '../calculos.js';
-import { el, montar, ETIQUETA_TIPO } from './util.js';
+import { el, montar, TIPOS, etiquetaTipo } from './util.js';
+import { nombreMes, t } from '../i18n.js';
 import { contar } from './movimiento.js';
 
 // La secuencia de apertura (barras que crecen y total que sube) ocurre una vez por apertura de la app.
 let yaAbierta = false;
 
-export function nombreMes(mes) {
-  const [anio, m] = mes.split('-').map(Number);
-  return new Intl.DateTimeFormat('es', { month: 'long', year: 'numeric' }).format(new Date(anio, m - 1, 1));
-}
 
 export function fechaCorta(fecha) {
   return `${fecha.slice(8, 10)}/${fecha.slice(5, 7)}`;
 }
 
-const TIPOS = Object.keys(ETIQUETA_TIPO);
 
 const lineaCobro = ({ fecha, pago }) =>
   el('li', {}, el('span', {}, `${fechaCorta(fecha)} · ${pago.nombre}`), el('span', { class: 'importe' }, formatearEuros(pago.importe)));
@@ -25,8 +21,8 @@ function cintaDelMes(dias, mes, diaHoy, primera) {
   const maximo = Math.max(...dias.map((d) => d.total), 1);
   const mayor = dias.reduce((a, b) => (b.total > a.total ? b : a), dias[0]);
   const descripcion = mayor.total > 0
-    ? `Cobros por día de ${nombreMes(mes)}. El mayor es el día ${mayor.dia}: ${formatearEuros(mayor.total)}.`
-    : `Cobros por día de ${nombreMes(mes)}. Ningún cobro con fecha.`;
+    ? t('resumen.cinta.mayor', { mes: nombreMes(mes), dia: mayor.dia, importe: formatearEuros(mayor.total) })
+    : t('resumen.cinta.nada', { mes: nombreMes(mes) });
 
   const columnas = dias.map((d) =>
     el('div', {
@@ -37,7 +33,7 @@ function cintaDelMes(dias, mes, diaHoy, primera) {
     },
     d.total > 0
       ? el('span', { class: 'barra', style: `height:${Math.max(6, (d.total / maximo) * 100)}%` },
-        TIPOS.filter((t) => d.porTipo[t] > 0).map((t) => el('span', { class: `seg ${t}`, style: `flex-grow:${d.porTipo[t]}` })))
+        TIPOS.filter((tipo) => d.porTipo[tipo] > 0).map((tipo) => el('span', { class: `seg ${tipo}`, style: `flex-grow:${d.porTipo[tipo]}` })))
       : null));
 
   const marcas = [1, 8, 15, 22, 29].filter((d) => d <= dias.length);
@@ -47,14 +43,14 @@ function cintaDelMes(dias, mes, diaHoy, primera) {
   return [
     el('div', { class: `cinta-con-nota${primera ? ' entra' : ''}` },
       mayor.total > 0
-        ? el('span', { class: 'nota', 'aria-hidden': 'true', style: posicion }, `día ${mayor.dia} · ${formatearEuros(mayor.total)}`)
+        ? el('span', { class: 'nota', 'aria-hidden': 'true', style: posicion }, t('resumen.nota', { dia: mayor.dia, importe: formatearEuros(mayor.total) }))
         : null,
       el('div', { class: `cinta${primera ? ' entra' : ''}`, role: 'img', 'aria-label': descripcion, style: `--n:${dias.length}` }, columnas)),
     el('div', { class: 'eje', 'aria-hidden': 'true', style: `--n:${dias.length}` },
       marcas.map((d) => el('span', { style: `grid-column:${d} / span 3` }, String(d)))),
     el('ul', { class: 'leyenda' },
-      TIPOS.map((t) => el('li', {}, el('span', { class: `punto ${t}` }), ETIQUETA_TIPO[t])),
-      diaHoy ? el('li', {}, el('span', { class: 'punto hoy' }), 'hoy') : null),
+      TIPOS.map((tipo) => el('li', {}, el('span', { class: `punto ${tipo}` }), etiquetaTipo(tipo))),
+      diaHoy ? el('li', {}, el('span', { class: 'punto hoy' }), t('resumen.hoy')) : null),
   ];
 }
 
@@ -67,7 +63,7 @@ export function render(raiz, ctx) {
     montar(raiz,
       el('p', { class: 'mes' }, nombreMes(mes)),
       el('p', { class: 'total num' }, formatearEuros(0)),
-      el('p', { class: 'total-pie' }, 'No hay pagos este mes. Añádelos en la pestaña Pagos y aquí verás el resumen.'),
+      el('p', { class: 'total-pie' }, t('resumen.vacio')),
     );
     return;
   }
@@ -81,42 +77,42 @@ export function render(raiz, ctx) {
   const semana = cobrosProximos(pagos, ctx.hoy, 7);
   const diaHoy = ctx.hoy.slice(0, 7) === mes ? Number(ctx.hoy.slice(8, 10)) : null;
 
-  const total = el('p', { class: 'total num', 'aria-label': `Pagos del mes: ${formatearEuros(totales.total)}` }, formatearEuros(totales.total));
+  const total = el('p', { class: 'total num', 'aria-label': t('resumen.totalAria', { importe: formatearEuros(totales.total) }) }, formatearEuros(totales.total));
   if (primera) contar(total, totales.total, 700, formatearEuros);
 
   montar(raiz,
     el('p', { class: 'mes' }, nombreMes(mes)),
     total,
-    el('p', { class: 'total-pie' }, 'se cobra este mes'),
+    el('p', { class: 'total-pie' }, t('resumen.totalPie')),
     cintaDelMes(importesPorDia(pagos, mes), mes, diaHoy, primera),
 
     el('section', { class: 'dejar' },
-      el('h3', { style: 'margin-top:0' }, 'Cuánto dejar en la cuenta'),
+      el('h3', { style: 'margin-top:0' }, t('resumen.dejar.titulo')),
       el('p', { class: 'grande num' }, formatearEuros(cuantoDejar(pagos, mes))),
-      el('p', { class: 'suave' }, 'Peor caso: lo que se cobra el día 1 más los pagos sin fecha. Déjalo en la cuenta antes de que entre el sueldo para que no falle ningún cobro.')),
+      el('p', { class: 'suave' }, t('resumen.dejar.texto'))),
 
-    el('h3', {}, 'Por tipo'),
-    el('div', { class: 'desglose', role: 'img', 'aria-label': 'Reparto del mes por tipo de pago' },
-      TIPOS.filter((t) => totales.porTipo[t] > 0).map((t) => el('span', { class: `seg ${t}`, style: `flex-grow:${totales.porTipo[t]}` }))),
+    el('h3', {}, t('resumen.porTipo')),
+    el('div', { class: 'desglose', role: 'img', 'aria-label': t('resumen.porTipoAria') },
+      TIPOS.filter((tipo) => totales.porTipo[tipo] > 0).map((tipo) => el('span', { class: `seg ${tipo}`, style: `flex-grow:${totales.porTipo[tipo]}` }))),
     el('ul', { class: 'filas' },
-      TIPOS.map((t) => el('li', {}, el('span', {}, ETIQUETA_TIPO[t]), el('span', { class: 'importe' }, formatearEuros(totales.porTipo[t]))))),
+      TIPOS.map((tipo) => el('li', {}, el('span', {}, etiquetaTipo(tipo)), el('span', { class: 'importe' }, formatearEuros(totales.porTipo[tipo]))))),
     totales.reembolsos > 0
-      ? el('p', { class: 'suave' }, `Otras personas te devuelven ${formatearEuros(totales.reembolsos)} al mes. No cuenta como ingreso tuyo.`)
+      ? el('p', { class: 'suave' }, t('resumen.reembolsos', { importe: formatearEuros(totales.reembolsos) }))
       : null,
 
-    el('h3', {}, 'Cuotas de deuda sobre tus ingresos'),
+    el('h3', {}, t('resumen.porcentaje.titulo')),
     porcentaje === null
-      ? el('p', { class: 'suave' }, 'Añade tus ingresos en Ajustes para ver este porcentaje.')
+      ? el('p', { class: 'suave' }, t('resumen.porcentaje.sinIngresos'))
       : el('p', { class: 'grande num', style: 'font-size:1.6rem;font-weight:700;margin:0' }, `${String(porcentaje).replace('.', ',')} %`),
 
-    el('h3', {}, 'Próximo cobro'),
+    el('h3', {}, t('resumen.proximo.titulo')),
     siguiente
       ? el('ul', { class: 'filas' }, lineaCobro(siguiente))
-      : el('p', { class: 'suave' }, 'No hay cobros con fecha en los próximos dos meses.'),
+      : el('p', { class: 'suave' }, t('resumen.proximo.nada')),
 
-    el('h3', {}, 'Próximos 7 días'),
+    el('h3', {}, t('resumen.semana.titulo')),
     semana.length === 0
-      ? el('p', { class: 'suave' }, 'Ningún cobro en los próximos 7 días.')
+      ? el('p', { class: 'suave' }, t('resumen.semana.nada'))
       : el('ul', { class: 'filas' }, semana.map(lineaCobro)),
   );
 }

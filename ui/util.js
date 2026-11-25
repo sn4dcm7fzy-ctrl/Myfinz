@@ -1,4 +1,5 @@
 // Ayudas de interfaz. Los textos van siempre como nodos de texto (nunca como HTML).
+import { t } from '../i18n.js';
 
 export function el(tag, props = {}, ...hijos) {
   const nodo = document.createElement(tag);
@@ -30,7 +31,8 @@ export function generarId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 }
 
-export const ETIQUETA_TIPO = { deuda: 'Deuda', contrato: 'Contrato', suscripcion: 'Suscripción' };
+export const TIPOS = ['deuda', 'contrato', 'suscripcion'];
+export const etiquetaTipo = (tipo) => t(`tipo.${tipo}`);
 
 // Sustituye el contenido de `raiz`. Ignora null/undefined/false (replaceChildren los escribiría como texto).
 export function montar(raiz, ...hijos) {

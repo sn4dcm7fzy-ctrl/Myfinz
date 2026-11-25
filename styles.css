@@ -322,6 +322,7 @@ label input, label select {
 .lista-perfiles { list-style: none; margin: 0 0 12px; padding: 0; }
 .fila-perfil { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--linea); }
 .fila-perfil .nombre { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 8px 0; }
-.fila-perfil .nombre.activo { font-weight: 650; }
-.fila-perfil .nombre.activo::after { content: " · activo"; color: var(--tinta-suave); font-weight: 400; font-size: 0.85rem; }
+.fila-perfil .nombre:has(+ .activo) { flex: 0 1 auto; font-weight: 650; }
+.fila-perfil .activo { flex: 1; color: var(--tinta-suave); font-size: 0.85rem; white-space: nowrap; }
+.idiomas .idioma[aria-pressed="true"] { border-color: var(--acento); color: var(--tinta); font-weight: 650; }
 .fila-perfil button:disabled { opacity: 0.45; }

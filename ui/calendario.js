@@ -1,19 +1,11 @@
 // Pantalla Calendario: cuadrícula del mes, detalle por día y proyección de los próximos 12 meses.
 import { formatearEuros } from '../formato.js';
 import { cobrosPorDia, importesPorDia, proyeccion, semanasDelMes, estaActivo } from '../calculos.js';
-import { el, montar, ETIQUETA_TIPO } from './util.js';
-import { nombreMes } from './resumen.js';
-
-const TIPOS = Object.keys(ETIQUETA_TIPO);
-const DIAS_SEMANA = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+import { el, montar, TIPOS } from './util.js';
+import { nombreMes, t } from '../i18n.js';
 
 // La proyección entra con una secuencia solo la primera vez que se abre en cada apertura de la app.
 let proyeccionVista = false;
-
-function nombreMesCorto(mes) {
-  const [anio, m] = mes.split('-').map(Number);
-  return new Intl.DateTimeFormat('es', { month: 'short' }).format(new Date(anio, m - 1, 1)).replace('.', '');
-}
 
 function cuadricula(pagos, mes, diaHoy) {
   const porDia = importesPorDia(pagos, mes);
@@ -25,8 +17,8 @@ function cuadricula(pagos, mes, diaHoy) {
     const info = porDia[dia - 1];
     const n = conteo.get(dia) ?? 0;
     const etiqueta = n === 0
-      ? `Día ${dia}: sin cobros`
-      : `Día ${dia}: ${n} ${n === 1 ? 'pago' : 'pagos'}, ${formatearEuros(info.total)}`;
+      ? t('calendario.dia.sinCobros', { dia })
+      : t(n === 1 ? 'calendario.dia.unPago' : 'calendario.dia.pagos', { dia, n, importe: formatearEuros(info.total) });
     return el('div', {
       class: `celda${dia === diaHoy ? ' hoy' : ''}`,
       'data-dia': dia,
@@ -34,11 +26,11 @@ function cuadricula(pagos, mes, diaHoy) {
       style: `--nivel:${info.total / maximo}`,
     },
     el('span', {}, String(dia)),
-    el('span', { class: 'puntos' }, TIPOS.filter((t) => info.porTipo[t] > 0).map((t) => el('span', { class: `punto ${t}` }))));
+    el('span', { class: 'puntos' }, TIPOS.filter((tipo) => info.porTipo[tipo] > 0).map((tipo) => el('span', { class: `punto ${tipo}` }))));
   };
 
   return el('div', { class: 'cuadricula' },
-    DIAS_SEMANA.map((d) => el('div', { class: 'cab', 'aria-hidden': 'true' }, d)),
+    t('calendario.diasSemana').split(',').map((d) => el('div', { class: 'cab', 'aria-hidden': 'true' }, d)),
     semanasDelMes(mes).flat().map(celda));
 }
 
@@ -52,12 +44,14 @@ function graficoProyeccion(datos) {
         el('div', {
           class: `barra-mes${d.liberado > 0 ? ' libera' : ''}`,
           role: 'img',
-          'aria-label': `${nombreMes(d.mes)}: ${formatearEuros(d.total)}${d.liberado > 0 ? `, se liberan ${formatearEuros(d.liberado)}` : ''}`,
+          'aria-label': d.liberado > 0
+            ? t('calendario.mesAriaLibera', { mes: nombreMes(d.mes), importe: formatearEuros(d.total), libera: formatearEuros(d.liberado) })
+            : t('calendario.mesAria', { mes: nombreMes(d.mes), importe: formatearEuros(d.total) }),
         },
         el('div', { class: 'relleno', style: `height:${(d.total / maximo) * 100}%;--i:${i}` })))),
-    el('div', { class: 'nombres-meses', 'aria-hidden': 'true' }, datos.map((d) => el('span', {}, nombreMesCorto(d.mes)))),
+    el('div', { class: 'nombres-meses', 'aria-hidden': 'true' }, datos.map((d) => el('span', {}, nombreMes(d.mes, 'short')))),
     datos.some((d) => d.liberado > 0)
-      ? el('p', { class: 'suave', style: 'margin-top:10px' }, 'Verde: mes en que termina una cuota y se libera dinero.')
+      ? el('p', { class: 'suave', style: 'margin-top:10px' }, t('calendario.verde'))
       : null,
   ];
 }
@@ -75,22 +69,22 @@ export function render(raiz, ctx) {
     el('li', {}, el('span', {}, p.nombre), el('span', { class: 'importe' }, formatearEuros(p.importe)));
 
   montar(raiz,
-    el('p', { class: 'mes' }, 'Calendario'),
+    el('p', { class: 'mes' }, t('calendario.titulo')),
     el('h2', { style: 'font-size:1.6rem;letter-spacing:-0.02em;margin-bottom:14px' }, nombreMes(mes)),
     cuadricula(pagos, mes, diaHoy),
 
     porDia.length === 0 && sinFecha.length === 0
-      ? el('p', { class: 'suave' }, 'No hay pagos este mes.')
+      ? el('p', { class: 'suave' }, t('calendario.vacio'))
       : null,
     ...porDia.map(({ dia, pagos: lista }) =>
-      [el('h3', {}, `Día ${dia}`), el('ul', { class: 'filas' }, lista.map(filaPago))]).flat(),
+      [el('h3', {}, t('calendario.dia', { dia })), el('ul', { class: 'filas' }, lista.map(filaPago))]).flat(),
     sinFecha.length > 0
-      ? [el('h3', {}, 'Sin fecha de cobro'), el('ul', { class: 'filas' }, sinFecha.map(filaPago))]
+      ? [el('h3', {}, t('calendario.sinFecha')), el('ul', { class: 'filas' }, sinFecha.map(filaPago))]
       : null,
 
-    el('h3', {}, 'Próximos 12 meses'),
+    el('h3', {}, t('calendario.proximos12')),
     ...graficoProyeccion(datos),
-    libera.length > 0 ? el('h3', {}, 'Cuando terminan cuotas') : null,
+    libera.length > 0 ? el('h3', {}, t('calendario.terminan')) : null,
     libera.length > 0
       ? el('ul', { class: 'filas' }, libera.map((d) =>
         el('li', {}, el('span', {}, nombreMes(d.mes)), el('span', { class: 'importe' }, `+${formatearEuros(d.liberado)}`))))

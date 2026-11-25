@@ -1,6 +1,7 @@
 // Arranque de la app: carga los datos, navega entre pantallas y guarda cambios.
 import { cargar, guardar, CLAVE } from './almacen.js';
 import { perfilActivo } from './perfiles.js';
+import { t, idioma, fijarIdioma, cargarIdioma, guardarIdioma } from './i18n.js';
 import { el, hoyISO, mesActual } from './ui/util.js';
 import * as pagos from './ui/pagos.js';
 import * as resumen from './ui/resumen.js';
@@ -23,6 +24,7 @@ function obtenerStorage() {
 }
 
 const storage = obtenerStorage();
+fijarIdioma(cargarIdioma(storage));
 const { datos, aviso, migrado } = cargar(storage, mesActual());
 
 // Si lo guardado estaba corrupto, se conserva una copia antes de que un guardado nuevo lo pise.
@@ -39,11 +41,16 @@ function mostrarAviso(texto) {
   cajaAviso.hidden = false;
 }
 
-const AVISOS = {
-  'datos-corruptos': 'Los datos guardados estaban dañados. Se ha guardado una copia aparte y la app empieza vacía. Si tienes una copia de seguridad, impórtala en Ajustes.',
-  'sin-almacenamiento': 'Este navegador no permite guardar datos: lo que añadas se perderá al cerrar la app.',
-};
-if (aviso) mostrarAviso(AVISOS[aviso]);
+const AVISOS = { 'datos-corruptos': 'aviso.corruptos', 'sin-almacenamiento': 'aviso.sinAlmacenamiento' };
+if (aviso) mostrarAviso(t(AVISOS[aviso]));
+
+// Textos que viven en index.html (pestañas) y el idioma del documento.
+function pintarTextosFijos() {
+  document.documentElement.lang = idioma();
+  document.getElementById('barra').setAttribute('aria-label', t('tab.barra'));
+  for (const nodo of document.querySelectorAll('[data-texto]')) nodo.textContent = t(nodo.dataset.texto);
+}
+pintarTextosFijos();
 
 // `datos`: todo lo guardado (todos los perfiles). `estado`: el perfil activo, { ingresos, pagos }.
 export const ctx = {
@@ -53,11 +60,19 @@ export const ctx = {
   get mes() { return mesActual(); },
   persistir() {
     if (!guardar(storage, ctx.datos)) {
-      mostrarAviso('No se pudieron guardar los cambios. Exporta una copia de seguridad cuanto antes.');
+      mostrarAviso(t('aviso.noGuardado'));
     }
   },
   mostrar,
   // Tras crear, renombrar, borrar o elegir perfil: el formulario abierto era de otro perfil.
+  // Desde Ajustes: guarda el idioma y repinta todo en el nuevo.
+  cambiarIdioma(cod, mensaje) {
+    fijarIdioma(cod);
+    guardarIdioma(storage, idioma());
+    pintarTextosFijos();
+    pagos.cerrarFormulario();
+    mostrar(actual, false, mensaje);
+  },
   alCambiarPerfiles(mensaje) {
     pagos.cerrarFormulario();
     pagos.reiniciarVista();
@@ -85,7 +100,7 @@ function mostrar(nombre, fundido = false, mensaje = undefined) {
   const pantalla = pantallas[nombre];
   pintarSelector(cabecera, ctx);
   if (pantalla) pantalla.render(raiz, ctx, mensaje);
-  else raiz.replaceChildren(el('h2', {}, 'Próximamente'));
+  else raiz.replaceChildren(el('h2', {}, t('app.proximamente')));
   if (fundido && !reducirMovimiento()) {
     raiz.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' });
   }
