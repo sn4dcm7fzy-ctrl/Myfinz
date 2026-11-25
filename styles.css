@@ -279,3 +279,49 @@ label input, label select {
   button { transition: none; }
   button:active, .check:active { transform: none; }
 }
+
+/* ---------- Perfiles ---------- */
+#cabecera {
+  position: relative;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: calc(12px + env(safe-area-inset-top)) 20px 0;
+}
+#cabecera + main { padding-top: 12px; }
+#aviso:not([hidden]) ~ #cabecera { padding-top: 12px; }
+.selector-perfil {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 0 14px;
+  border-radius: 999px; border: 1px solid var(--linea);
+  background: var(--superficie); color: var(--tinta);
+  font-size: 0.9rem; font-weight: 650;
+}
+.selector-perfil .nombre { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selector-perfil .flecha { color: var(--acento); font-size: 0.8rem; }
+.selector-perfil[aria-expanded="true"] { border-color: var(--acento); }
+.menu-perfiles {
+  position: absolute; z-index: 10; left: 20px; top: calc(100% + 6px);
+  min-width: 220px; max-width: calc(100% - 40px);
+  margin: 0; padding: 6px; list-style: none;
+  background: var(--superficie); border: 1px solid var(--linea); border-radius: 14px;
+  box-shadow: 0 12px 32px rgb(27 23 64 / 0.16);
+  transform-origin: top left;
+}
+.menu-perfiles[hidden] { display: none; }
+.menu-perfiles button {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  min-height: 44px; padding: 0 12px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--tinta); text-align: left;
+  overflow-wrap: anywhere;
+}
+.menu-perfiles button::before { content: ""; width: 1em; flex: none; color: var(--acento); font-weight: 700; }
+.menu-perfiles button[aria-current]::before { content: "✓"; }
+.menu-perfiles button[aria-current] { font-weight: 650; }
+.menu-perfiles .separador { border-top: 1px solid var(--linea); margin-top: 6px; padding-top: 6px; }
+.menu-perfiles .separador button { color: var(--tinta-suave); }
+.lista-perfiles { list-style: none; margin: 0 0 12px; padding: 0; }
+.fila-perfil { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--linea); }
+.fila-perfil .nombre { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 8px 0; }
+.fila-perfil .nombre.activo { font-weight: 650; }
+.fila-perfil .nombre.activo::after { content: " · activo"; color: var(--tinta-suave); font-weight: 400; font-size: 0.85rem; }
+.fila-perfil button:disabled { opacity: 0.45; }

@@ -2,6 +2,7 @@
 import { formatearEuros, parsearEuros } from '../formato.js';
 import { datosVacios, exportarJSON, importarJSON } from '../almacen.js';
 import { el, montar, hoyISO } from './util.js';
+import { tarjetaPerfiles } from './perfiles.js';
 
 export function render(raiz, ctx, mensajeInicial) {
   const mensaje = el('p', { role: 'status' });
@@ -30,7 +31,7 @@ export function render(raiz, ctx, mensajeInicial) {
 
   const exportar = async () => {
     const nombre = `mis-pagos-${hoyISO()}.json`;
-    const texto = exportarJSON(ctx.estado);
+    const texto = exportarJSON(ctx.datos);
     // En un iPhone con la app instalada, la descarga con enlace puede no hacer nada: se prefiere el menú de compartir.
     const archivo = new File([texto], nombre, { type: 'application/json' });
     if (navigator.canShare?.({ files: [archivo] })) {
@@ -60,24 +61,27 @@ export function render(raiz, ctx, mensajeInicial) {
         ? 'Esa copia es de una versión más nueva de la app. No se ha cambiado nada.'
         : `No se pudo importar: ${r.error}. No se ha cambiado nada.`, true);
     }
-    if (!confirm(`Esto reemplaza tus datos actuales por la copia (${r.datos.pagos.length} pagos). ¿Continuar?`)) return;
-    ctx.estado = r.datos;
+    if (!confirm(`Esto reemplaza todos tus perfiles por la copia (${r.datos.perfiles.length} ${r.datos.perfiles.length === 1 ? 'perfil' : 'perfiles'}). ¿Continuar?`)) return;
+    ctx.datos = r.datos;
     ctx.persistir();
-    render(raiz, ctx, 'Copia importada.');
+    ctx.alCambiarPerfiles('Copia importada.');
   };
 
   const borrarTodo = () => {
-    if (!confirm('Se borrarán todos tus pagos e ingresos de este iPhone. ¿Seguro?')) return;
-    ctx.estado = datosVacios();
+    if (!confirm('Se borrarán todos los perfiles, pagos e ingresos de este iPhone. ¿Seguro?')) return;
+    ctx.datos = datosVacios();
     ctx.persistir();
-    render(raiz, ctx, 'Todo borrado.');
+    ctx.alCambiarPerfiles('Todo borrado.');
   };
 
   montar(raiz,
     el('h2', {}, 'Ajustes'),
+    mensaje, // arriba: así se ve sin bajar, sobre todo lo que dice la tarjeta de perfiles
+
+    tarjetaPerfiles(ctx, decir),
 
     el('form', { class: 'tarjeta', onsubmit: guardarIngresos },
-      el('h3', {}, 'Tus ingresos'),
+      el('h3', {}, `Ingresos de ${ctx.estado.nombre}`),
       el('label', {}, 'Ingresos mensuales propios (€)', campoIngresos),
       el('p', { class: 'suave' }, 'Solo se usan para calcular qué parte se va en cuotas de deuda.'),
       el('button', { type: 'submit', class: 'primario' }, 'Guardar ingresos')),
@@ -94,6 +98,5 @@ export function render(raiz, ctx, mensajeInicial) {
       el('h3', {}, 'Borrar todo'),
       el('button', { type: 'button', class: 'peligro', onclick: borrarTodo }, 'Borrar todos los datos')),
 
-    mensaje,
   );
 }

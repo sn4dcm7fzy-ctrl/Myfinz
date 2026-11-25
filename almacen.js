@@ -2,11 +2,16 @@
 import { mesInicioPara } from './calculos.js';
 // Todos los importes son céntimos enteros. El formato lleva `version` para poder migrarlo.
 
-export const VERSION = 2;
+// Versión 3: { version, perfilActivo, perfiles: [{ id, nombre, ingresos, pagos }] }.
+// Las versiones 1 y 2 eran un solo bloque { version, ingresos, pagos }: se migran a un único perfil.
+export const VERSION = 3;
+export const NOMBRE_INICIAL = 'Mi perfil';
+export const MAX_NOMBRE_PERFIL = 30;
+const ID_INICIAL = 'perfil-1';
 const TIPOS = ['deuda', 'contrato', 'suscripcion'];
 
 export function datosVacios() {
-  return { version: VERSION, ingresos: 0, pagos: [] };
+  return { version: VERSION, perfilActivo: ID_INICIAL, perfiles: [{ id: ID_INICIAL, nombre: NOMBRE_INICIAL, ingresos: 0, pagos: [] }] };
 }
 
 const esEntero = (x) => Number.isInteger(x) && x >= 0;
@@ -48,16 +53,17 @@ function validarPago(p, i, ids) {
   return null;
 }
 
-// Devuelve una copia normalizada (campos opcionales a null); no modifica la entrada.
-// Los datos de versión 1 se migran a la 2: sus pagos empiezan en `mes` (null = sin límite).
-export function validar(obj, mes = null) {
+// Valida un bloque { version: 1|2, ingresos, pagos } (un perfil) y devuelve { ingresos, pagos }
+// normalizados (campos opcionales a null); no modifica la entrada.
+// En la versión 1 los pagos empiezan en `mes` (null = sin límite).
+export function validarPerfil(obj, mes = null) {
   if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
     return { ok: false, error: 'Los datos deben ser un objeto' };
   }
   if (!Number.isInteger(obj.version) || obj.version < 1) {
     return { ok: false, error: 'La versión de los datos no es válida' };
   }
-  if (obj.version > VERSION) return { ok: false, error: 'version-futura' };
+  if (obj.version > 2) return { ok: false, error: 'version-futura' };
   if (!esEntero(obj.ingresos)) {
     return { ok: false, error: 'ingresos debe ser un entero de céntimos, 0 o más' };
   }
@@ -82,7 +88,48 @@ export function validar(obj, mes = null) {
     pagados: { ...(p.pagados ?? {}) },
     mesInicio: obj.version === 1 ? mesInicioPara(mes, p.mesFin ?? null) : (p.mesInicio ?? null),
   }));
-  return { ok: true, datos: { version: VERSION, ingresos: obj.ingresos, pagos } };
+  return { ok: true, datos: { ingresos: obj.ingresos, pagos } };
+}
+
+const esObjeto = (x) => x !== null && typeof x === 'object' && !Array.isArray(x);
+
+// Valida los datos completos y devuelve una copia en versión 3. Acepta las versiones 1, 2 y 3.
+export function validar(obj, mes = null) {
+  if (!esObjeto(obj)) return { ok: false, error: 'Los datos deben ser un objeto' };
+  if (!Number.isInteger(obj.version) || obj.version < 1) {
+    return { ok: false, error: 'La versión de los datos no es válida' };
+  }
+  if (obj.version > VERSION) return { ok: false, error: 'version-futura' };
+  if (obj.version < 3) {
+    const r = validarPerfil(obj, mes);
+    if (!r.ok) return r;
+    return { ok: true, datos: { version: VERSION, perfilActivo: ID_INICIAL, perfiles: [{ id: ID_INICIAL, nombre: NOMBRE_INICIAL, ...r.datos }] } };
+  }
+  if (!Array.isArray(obj.perfiles) || obj.perfiles.length === 0) {
+    return { ok: false, error: 'perfiles debe ser una lista con al menos un perfil' };
+  }
+  const ids = new Set();
+  const nombres = new Set();
+  const perfiles = [];
+  for (let i = 0; i < obj.perfiles.length; i++) {
+    const p = obj.perfiles[i];
+    const donde = `perfiles[${i}]`;
+    if (!esObjeto(p)) return { ok: false, error: `${donde} no es un perfil` };
+    if (typeof p.id !== 'string' || p.id === '') return { ok: false, error: `${donde}.id debe ser un texto` };
+    if (ids.has(p.id)) return { ok: false, error: `${donde}.id está repetido` };
+    ids.add(p.id);
+    const nombre = typeof p.nombre === 'string' ? p.nombre.trim() : '';
+    if (nombre.length < 1 || nombre.length > MAX_NOMBRE_PERFIL) {
+      return { ok: false, error: `${donde}.nombre debe tener entre 1 y ${MAX_NOMBRE_PERFIL} caracteres` };
+    }
+    if (nombres.has(nombre.toLowerCase())) return { ok: false, error: `${donde}.nombre está repetido` };
+    nombres.add(nombre.toLowerCase());
+    const r = validarPerfil({ version: 2, ingresos: p.ingresos, pagos: p.pagos });
+    if (!r.ok) return { ok: false, error: `${donde}: ${r.error}` };
+    perfiles.push({ id: p.id, nombre, ...r.datos });
+  }
+  if (!ids.has(obj.perfilActivo)) return { ok: false, error: 'perfilActivo no es ningún perfil' };
+  return { ok: true, datos: { version: VERSION, perfilActivo: obj.perfilActivo, perfiles } };
 }
 
 export function exportarJSON(datos) {
@@ -103,7 +150,7 @@ export const CLAVE = 'mis-pagos-v1';
 
 // `storage` solo necesita getItem(clave) y setItem(clave, texto), como localStorage.
 // Nunca escribe al cargar: si lo guardado está corrupto, se deja intacto.
-// `migrado` avisa de que lo guardado era versión 1: quien llama debe guardarlo ya migrado.
+// `migrado` avisa de que lo guardado era de una versión anterior: quien llama debe guardarlo ya migrado.
 export function cargar(storage, mes = null) {
   let texto;
   try {
@@ -114,7 +161,7 @@ export function cargar(storage, mes = null) {
   if (texto === null || texto === undefined) return { datos: datosVacios() };
   const r = importarJSON(texto, mes);
   if (!r.ok) return { datos: datosVacios(), aviso: 'datos-corruptos' };
-  const migrado = JSON.parse(texto).version === 1;
+  const migrado = JSON.parse(texto).version < VERSION;
   return migrado ? { datos: r.datos, migrado } : { datos: r.datos };
 }
 

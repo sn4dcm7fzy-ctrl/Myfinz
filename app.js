@@ -1,11 +1,13 @@
 // Arranque de la app: carga los datos, navega entre pantallas y guarda cambios.
 import { cargar, guardar, CLAVE } from './almacen.js';
+import { perfilActivo } from './perfiles.js';
 import { el, hoyISO, mesActual } from './ui/util.js';
 import * as pagos from './ui/pagos.js';
 import * as resumen from './ui/resumen.js';
 import * as calendario from './ui/calendario.js';
 import * as ajustes from './ui/ajustes.js';
 import { reducirMovimiento } from './ui/movimiento.js';
+import { pintarSelector } from './ui/perfiles.js';
 
 const pantallas = { resumen, pagos, calendario, ajustes };
 
@@ -29,6 +31,7 @@ if (aviso === 'datos-corruptos') {
 }
 
 const raiz = document.getElementById('contenido');
+const cabecera = document.getElementById('cabecera');
 const cajaAviso = document.getElementById('aviso');
 
 function mostrarAviso(texto) {
@@ -42,19 +45,27 @@ const AVISOS = {
 };
 if (aviso) mostrarAviso(AVISOS[aviso]);
 
+// `datos`: todo lo guardado (todos los perfiles). `estado`: el perfil activo, { ingresos, pagos }.
 export const ctx = {
-  estado: datos,
+  datos,
+  get estado() { return perfilActivo(ctx.datos); },
   get hoy() { return hoyISO(); },
   get mes() { return mesActual(); },
   persistir() {
-    if (!guardar(storage, ctx.estado)) {
+    if (!guardar(storage, ctx.datos)) {
       mostrarAviso('No se pudieron guardar los cambios. Exporta una copia de seguridad cuanto antes.');
     }
   },
   mostrar,
+  // Tras crear, renombrar, borrar o elegir perfil: el formulario abierto era de otro perfil.
+  alCambiarPerfiles(mensaje) {
+    pagos.cerrarFormulario();
+    pagos.reiniciarVista();
+    mostrar(actual, false, mensaje);
+  },
 };
 
-// Los datos de la versión 1 se guardan ya migrados: así mesInicio no cambia al abrir la app otro mes.
+// Los datos de versiones anteriores se guardan ya migrados: así mesInicio no cambia al abrir la app otro mes.
 if (migrado) ctx.persistir();
 
 const ORDEN = ['resumen', 'pagos', 'calendario', 'ajustes'];
@@ -62,7 +73,8 @@ const indicador = document.querySelector('.indicador');
 let actual = 'resumen';
 
 // `fundido`: al cambiar de pestaña el contenido nuevo aparece con un fundido muy corto (140 ms).
-function mostrar(nombre, fundido = false) {
+// `mensaje`: aviso inicial para la pantalla (solo lo usa Ajustes).
+function mostrar(nombre, fundido = false, mensaje = undefined) {
   if (nombre !== actual) pagos.cerrarFormulario();
   actual = nombre;
   for (const boton of document.querySelectorAll('#barra button')) {
@@ -71,7 +83,8 @@ function mostrar(nombre, fundido = false) {
   }
   indicador.style.transform = `translateX(${ORDEN.indexOf(nombre) * 100}%)`;
   const pantalla = pantallas[nombre];
-  if (pantalla) pantalla.render(raiz, ctx);
+  pintarSelector(cabecera, ctx);
+  if (pantalla) pantalla.render(raiz, ctx, mensaje);
   else raiz.replaceChildren(el('h2', {}, 'Próximamente'));
   if (fundido && !reducirMovimiento()) {
     raiz.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 140, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' });

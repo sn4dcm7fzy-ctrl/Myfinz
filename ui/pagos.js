@@ -1,7 +1,7 @@
 // Pantalla Pagos: lista con filtro y formulario para añadir, editar y borrar.
 import { formatearEuros, parsearEuros, nombreMes } from '../formato.js';
 import { mesFinDesdeCuotas, mesInicioPara, estaActivo, estaPagado, marcarPagado, desmarcarPagado, resumenPagado, moverPago, sumarMes } from '../calculos.js';
-import { validar } from '../almacen.js';
+import { validarPerfil } from '../almacen.js';
 import { el, generarId, ETIQUETA_TIPO } from './util.js';
 
 let filtro = 'todos';
@@ -11,6 +11,12 @@ let formulario = null; // null = cerrado; { pago: Pago|null } = abierto (null = 
 // Al salir de la pantalla se descarta el formulario: podria apuntar a un pago que ya no existe.
 export function cerrarFormulario() {
   formulario = null;
+}
+
+// Al cambiar de perfil se vuelve al mes actual y sin filtro: si no, el otro perfil podría parecer vacío.
+export function reiniciarVista() {
+  filtro = 'todos';
+  mesVista = null;
 }
 
 export function render(raiz, ctx) {
@@ -198,7 +204,7 @@ function vistaFormulario(raiz, ctx) {
     const pagos = previo
       ? ctx.estado.pagos.map((p) => (p.id === previo.id ? nuevo : p))
       : [...ctx.estado.pagos, nuevo];
-    const r = validar({ version: ctx.estado.version, ingresos: ctx.estado.ingresos, pagos });
+    const r = validarPerfil({ version: 2, ingresos: ctx.estado.ingresos, pagos });
     if (!r.ok) return mostrarError(r.error);
 
     ctx.estado.pagos = r.datos.pagos;

@@ -2,7 +2,7 @@
 // Estrategia: se sirve al instante lo guardado y se renueva en segundo plano; la versión nueva
 // se ve en la siguiente apertura. Si se añade o quita un archivo de la app, actualiza ARCHIVOS.
 const PREFIJO = 'mis-pagos-';
-const VERSION = `${PREFIJO}cache-2`;
+const VERSION = `${PREFIJO}cache-3`;
 const ARCHIVOS = [
   './',
   'index.html',
@@ -11,12 +11,14 @@ const ARCHIVOS = [
   'formato.js',
   'calculos.js',
   'almacen.js',
+  'perfiles.js',
   'ui/util.js',
   'ui/movimiento.js',
   'ui/pagos.js',
   'ui/resumen.js',
   'ui/calendario.js',
   'ui/ajustes.js',
+  'ui/perfiles.js',
   'manifest.webmanifest',
   'icons/icon-180.png',
   'icons/icon-512.png',
